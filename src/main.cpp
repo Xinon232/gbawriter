@@ -89,7 +89,7 @@ void render(bn::palette_bitmap_bg_painter& painter,bn::sprite_text_generator& ui
   auto& text=app.text();auto& layout=app.layout();const char* s=text.data();
   int last=app.viewport()+app.view_rows();if(last>layout.rows())last=layout.rows();
   for(int row=app.viewport();row<last;++row){int x=8,y=writer::TEXT_Y+(row-app.viewport())*writer::TEXT_PITCH;std::size_t end=row+1<layout.rows()?layout.row_start(row+1):text.bytes();
-   for(std::size_t p=layout.row_start(row);p<end;){char ch[5];p=writer::Layout::character(s,p,ch);if(ch[0]=='\n')break;int w=layout.width(ch);if(w&&ch[0]!='\t')line(px,x,y,ch,228-x);x+=w;}
+   for(std::size_t p=layout.row_content_start(text,row);p<end;){char ch[5];p=writer::Layout::character(s,p,ch);if(ch[0]=='\n')break;int w=layout.width(ch);if(w&&ch[0]!='\t')line(px,x,y,ch,228-x);x+=w;}
   }
   auto caret=layout.position(text,text.caret_byte());if(app.caret_visible()&&caret.row>=app.viewport()&&caret.row<last){int x=8+caret.x,y=writer::TEXT_Y+(caret.row-app.viewport())*writer::TEXT_PITCH;for(int j=0;j<16;++j)pixel(px,x,y+j);}
   break;}

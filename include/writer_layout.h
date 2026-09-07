@@ -32,7 +32,9 @@ public:
   using Width = int (*)(const char *);
   void reflow(TextModel &text, int width, Width measure);
   int rows() const { return _count; }
-  std::size_t row_start(int row) const { return _rows[row]; }
+  std::size_t row_start(int row) const { return _rows[row] & ~SUPPRESS; }
+  // First displayed byte; suppressed separators remain in the byte row index.
+  std::size_t row_content_start(TextModel &text, int row) const;
   VisualPosition position(TextModel &text, std::size_t byte) const;
   bool move(TextModel &text, int rows);
   void reset_column() { _desired = -1; }
@@ -40,6 +42,8 @@ public:
   int width(const char *glyph) const;
 
 private:
+  static constexpr uint16_t SUPPRESS = 0x8000;
+  static_assert(TEXT_CAPACITY < SUPPRESS, "row offsets must leave the flag bit free");
   uint16_t _rows[TEXT_CAPACITY + 1] = {};
   int _count = 1, _width = 220, _desired = -1;
   Width _measure = nullptr;

@@ -23,6 +23,7 @@ void Layout::reflow(TextModel &text, int w, Width measure) {
   _rows[0] = 0;
   _count = 1;
   int x = 0;
+  bool line_content = false, suppress = false;
   std::size_t word_end = 0;
   const char *s = text.data();
   for (std::size_t p = 0; p < text.bytes();) {
@@ -48,29 +49,59 @@ void Layout::reflow(TextModel &text, int w, Width measure) {
     if (ch[0] == '\n') {
       _rows[_count++] = next;
       x = 0;
+      line_content = suppress = false;
     } else {
       int advance = width(ch);
+      bool separator = ch[0] == ' ' || ch[0] == '\t';
+      if (suppress && separator) {
+        p = next;
+        continue;
+      }
       if (x && x + advance > _width) {
         _rows[_count++] = p;
         x = 0;
+        if (separator && line_content) {
+          _rows[_count - 1] |= SUPPRESS;
+          suppress = true;
+          advance = 0;
+        }
+      }
+      if (!separator && advance) {
+        line_content = true;
+        suppress = false;
       }
       x += advance;
     }
     p = next;
   }
 }
+std::size_t Layout::row_content_start(TextModel &text, int row) const {
+  std::size_t p = row_start(row);
+  if (_rows[row] & SUPPRESS) {
+    const char *s = text.data();
+    while (p < text.bytes()) {
+      char ch[5];
+      std::size_t next = character(s, p, ch);
+      if (ch[0] != ' ' && ch[0] != '\t' && ch[0] != '\r' &&
+          std::strcmp(ch, "\xef\xbb\xbf"))
+        break;
+      p = next;
+    }
+  }
+  return p;
+}
 VisualPosition Layout::position(TextModel &text, std::size_t byte) const {
   int low = 0, high = _count;
   while (low + 1 < high) {
     int mid = (low + high) / 2;
-    if (_rows[mid] <= byte)
+    if (row_start(mid) <= byte)
       low = mid;
     else
       high = mid;
   }
   int x = 0;
   const char *s = text.data();
-  for (std::size_t p = _rows[low]; p < byte;) {
+  for (std::size_t p = row_content_start(text, low); p < byte;) {
     char ch[5];
     p = character(s, p, ch);
     if (ch[0] != '\n')
@@ -89,8 +120,8 @@ bool Layout::move(TextModel &text, int delta) {
     row = _count - 1;
   if (row == pos.row)
     return false;
-  std::size_t best = _rows[row], p = best,
-              end = row + 1 < _count ? _rows[row + 1] : text.bytes();
+  std::size_t best = row_start(row), p = row_content_start(text, row),
+              end = row + 1 < _count ? row_start(row + 1) : text.bytes();
   int x = 0, distance = std::abs(_desired);
   const char *s = text.data();
   for (;;) {

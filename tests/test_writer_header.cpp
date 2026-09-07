@@ -77,6 +77,25 @@ static void editor_positions(){
   for(int y=18;y<34;++y)expected[y*240+8+font_width("bbbbbbbbbb")]=1;
   assert(std::memcmp(actual,expected,sizeof(actual))==0);
   assert(std::string(app.text().data())==document);
+  // Exact production framebuffer: overflowed inter-word separators have no ink
+  // or advance; explicit-newline and document-start indentation remains visible.
+  prefix.clear();
+  while(font_width((prefix+"a").c_str())<=220)prefix+='a';
+  for(const char* separators:{" ","   ","\t"," \t     "}){
+    document=prefix+separators+"b\n  b";
+    app.text().set_text(document.c_str());app.layout().reflow(app.text(),220,glyph_width);
+    assert(app.layout().rows()==3);
+    std::memset(actual,0,sizeof(actual));std::memset(expected,0,sizeof(expected));
+    render_editor(actual,app,storage);
+    draw_text_idx8_bus16_range(prefix.c_str(),expected+8,0,220,240,1);
+    draw_text_idx8_bus16_range("b",expected+18*240+8,0,220,240,1);
+    draw_text_idx8_bus16_range("  b",expected+36*240+8,0,220,240,1);
+    for(int y=36;y<52;++y)expected[y*240+8+font_width("  b")]=1;
+    assert(std::memcmp(actual,expected,sizeof(actual))==0);
+    assert(std::string(app.text().data())==document);
+    auto pos=app.layout().position(app.text(),prefix.size()+std::strlen(separators));
+    assert(pos.row==1 && pos.x==0);
+  }
   std::filesystem::remove_all(root);
   std::cout<<"PASS: actual editor pixels: file/group/case, text/caret top, gutter, 7/9 rows and toggles\n";
 }

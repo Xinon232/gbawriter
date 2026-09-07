@@ -1,6 +1,12 @@
-# GBA Writer v0.3.0 — hardware-unverified prerelease
+# GBA Writer v0.3.1 — hardware-unverified prerelease
 
-## Changes from v0.2.1
+## Changes from v0.3.0
+
+- Suppress display advance for inter-word spaces/tabs carried onto a soft-wrapped row. Original bytes remain unchanged; deliberate indentation at document start and after explicit LF/CRLF remains visible, including long indentation.
+- Rendering, caret positioning and vertical navigation share the same display start. Hidden separator bytes remain reachable by horizontal movement and backspace; vertical x=0 ties choose the earliest byte in the row.
+- Added exact real-font framebuffer, UTF-8/BOM/CRLF, long separator/indentation, trailing whitespace and maximum-capacity regressions. No input, storage, font or unrelated UI changes.
+
+## Retained v0.3.0 changes (from v0.2.1)
 
 - Main-menu START opens credits; B returns without accessing SD. The writing-font body reads `Made by Halim Jarrar`, `(C) 2026`, `halim-jarrar.de`, `monday@halim-jarrar.de`.
 - The adjacent bottom prompts are exactly `Select: Controls` and `Start: Credits`, in the existing blue UI font. Menu labels, date labels, load markers, error explanations and navigation hints use that font; numeric date values and text filenames retain the writing font. Controls/credits content and saving indications also retain the writing font.

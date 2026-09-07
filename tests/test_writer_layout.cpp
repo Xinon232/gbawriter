@@ -30,7 +30,7 @@ static void wrapping_edges() {
         auto caret = layout.position(text, p);
         assert(caret.row == row && caret.x == x);
         char ch[5]; p = Layout::character(text.data(), p, ch);
-        if (ch[0] != '\n') x += layout.width(ch);
+        if (p > layout.row_content_start(text,row) && ch[0] != '\n') x += layout.width(ch);
       }
       assert(x <= pixels);
     }
@@ -49,14 +49,42 @@ static void wrapping_edges() {
   check("aa bb", 30, {0}); // exact fit
   check("aii bbb", 24, {0,4}); // proportional-width word push
   check("aa bbbbb", 24, {0,4}); // only an oversized word splits
-  check("aaaa b", 24, {0,4}); // whitespace is retained on the next row
+  check("aaaa b", 24, {0,4}); // separator byte retained, display width suppressed
   check("aa   bb", 24, {0,4});
-  check("aa\tbb", 24, {0,2,3});
+  check("aa\tbb", 24, {0,2});
   check("aa bbb\r\n\n", 24, {0,3,8,9});
   check("\xef\xbb\xbf" "aa bbb", 24, {0,6});
   check("éé €😀", 24, {0,5}); // 2/3/4-byte code points, no split UTF-8
   check("é€😀é€", 12, {0,5,11});
   check("", 24, {0});
+  check("    b", 24, {0,4}); // deliberate initial indentation, not suppressed
+  check("      b", 24, {0,4});
+  check("\n      b", 24, {0,1,5});
+  check("\xef\xbb\xbf" "      b", 24, {0,7});
+  check("aaaa \t   b", 24, {0,4});
+  check("aaaa \r\xef\xbb\xbf\t b", 24, {0,4});
+  check("aaaa   \r\n  b", 24, {0,4,9});
+  check("aaaa    ", 24, {0,4});
+  check("    ", 24, {0});
+  for (const char* separator : {" ", "\t"}) {
+    std::string run;
+    for(std::size_t p=0;p<TEXT_CAPACITY-5;++p)run+=separator;
+    std::string source="aaaa"+run+"b";
+    assert(text.set_text(source.c_str())); calls=0; layout.reflow(text,24,width);
+    assert(layout.rows()==2 && layout.row_start(1)==4);
+    assert(calls<=int(TEXT_CAPACITY*2));
+    for(std::size_t p=4;p<source.size();p+=127){
+      auto pos=layout.position(text,p);assert(pos.row==1 && pos.x==0);
+    }
+    assert(layout.position(text,text.bytes()).x==6);
+    text.set_caret(0);layout.reset_column();assert(layout.move(text,1));
+    assert(text.caret_byte()==4); // ties choose earliest byte, hidden bytes stay reachable
+    text.set_caret(source.size()-1);text.move_left();text.move_right();
+    assert(text.caret_byte()==source.size()-1);
+    assert(text.backspace());source.erase(source.size()-2,1);
+    layout.reflow(text,24,width);assert(std::string(text.data())==source);
+    assert(layout.position(text,text.caret_byte()).x==0);
+  }
   check("\n", 24, {0,1});
   std::string max_word(TEXT_CAPACITY, 'a');
   text.set_text(max_word.c_str()); calls=0; layout.reflow(text,220,width);
@@ -79,6 +107,13 @@ static void wrapping_edges() {
   assert(std::string(text.data())=="aa bbb\naa bbb" && layout.row_start(1)==3);
 }
 int main() {
+  {
+    TextModel text; Layout layout;
+    text.set_text("aaaa b"); layout.reflow(text,24,width);
+    assert(layout.rows()==2 && layout.row_start(1)==4);
+    assert(layout.position(text,5).x==0 && "soft-wrap separator must not indent word");
+    assert(std::string(text.data())=="aaaa b");
+  }
   wrapping_edges();
   TextModel t;
   t.set_text("aébc\nx\n\n");
