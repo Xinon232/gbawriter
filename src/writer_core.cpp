@@ -505,12 +505,17 @@ void InputState::update(uint16_t snapshot,Consumer consume,void* context) {
     dispatch(b,false);
   }
   const uint16_t navigation=snapshot & (15u | (1u<<unsigned(Button::L)) | (1u<<unsigned(Button::R)));
-  if(!_select && (snapshot&(1u<<unsigned(Button::START))) && navigation && !(navigation&(navigation-1))) {
-    if(navigation!=_repeat_keys){_repeat_keys=navigation;_repeat_frames=0;}
+  const bool isolated_edit=snapshot==(1u<<unsigned(Button::A)) || snapshot==(1u<<unsigned(Button::B));
+  // A chord's release tail must never arm an edit: require a fresh solo press.
+  const bool edit_repeat=isolated_edit && ((pressed&snapshot) || _repeat_keys==snapshot);
+  const bool navigation_repeat=!_select && (snapshot&(1u<<unsigned(Button::START))) && navigation && !(navigation&(navigation-1));
+  const uint16_t repeat_keys=edit_repeat?snapshot:navigation;
+  if(edit_repeat || navigation_repeat) {
+    if(repeat_keys!=_repeat_keys){_repeat_keys=repeat_keys;_repeat_frames=0;}
     else {
       ++_repeat_frames;
       if(_repeat_frames>=NAV_REPEAT_DELAY && (_repeat_frames-NAV_REPEAT_DELAY)%NAV_REPEAT_INTERVAL==0)
-        for(auto b:order)if(navigation&(1u<<unsigned(b)))dispatch(b,false);
+        for(auto b:order)if(repeat_keys&(1u<<unsigned(b)))dispatch(b,false);
       if(_repeat_frames>=NAV_REPEAT_DELAY+NAV_REPEAT_INTERVAL)_repeat_frames=NAV_REPEAT_DELAY;
     }
   } else {_repeat_keys=0;_repeat_frames=0;}

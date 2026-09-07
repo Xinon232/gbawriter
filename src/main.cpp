@@ -77,7 +77,7 @@ void render(bn::palette_bitmap_bg_painter& painter,bn::sprite_text_generator& ui
     writer::format(buffer,sizeof(buffer),"%s%s",app.text().dirty()?"* ":"",storage.current_name());line(px,8,writer::STATUS_Y,buffer,128);
    }
    line(px,144,writer::STATUS_Y,app.active_group(),32);
-   if(app.caps())line(px,184,writer::STATUS_Y,"CAPS",48);else if(app.shift())line(px,184,writer::STATUS_Y,"SHIFT",48);
+   if(app.caps())line(px,184,writer::STATUS_Y,"Caps",48);else if(app.shift())line(px,184,writer::STATUS_Y,"Shift",48);
   }
   auto& text=app.text();auto& layout=app.layout();const char* s=text.data();
   int last=app.viewport()+app.view_rows();if(last>layout.rows())last=layout.rows();

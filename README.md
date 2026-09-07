@@ -1,4 +1,4 @@
-# GBA Writer — v0.2.0
+# GBA Writer — v0.2.1
 
 A controller-native plain-text writer and diary for Game Boy Advance, based on [GBAReader v0.5.0](https://github.com/Xinon232/gbareader). It uses the inherited Butano menus, SuperFW bitmap text renderer, fonts, and Supercard SD/FatFS path. There is no QWERTY keyboard, network service, or AI component.
 
@@ -38,7 +38,7 @@ Hold a direction, then press **B / A / R** to choose its **first / second / thir
 - Keep Down held and press R twice: the first `j` becomes **`g`**.
 - Keep L+Down held and press R twice: the first `w` becomes **`v`**.
 - Release the group between presses to type literal `jj` or `ww`. These transformations depend on the same continuous hold, **not timing**, and never substitute unrelated text.
-- **A alone:** space. **B alone:** backspace one UTF-8 codepoint; no effect at the beginning.
+- **A alone:** space. **B alone:** backspace one UTF-8 codepoint; no effect at the beginning. Hold either button alone to repeat: one immediate edit, first repeat after **24 frames**, then every **5 frames**, exactly matching START navigation. Adding any other button cancels edit repeat; releasing a chord's modifier does not start it. Release A/B and press it alone again to rearm. Letter/SELECT/save chords remain press-only.
 - **START released alone:** newline. Holding it does not insert immediately.
 
 ### Shift and Caps
@@ -47,7 +47,7 @@ Isolated **R presses and releases** cycle **normal → Shift → Caps → normal
 
 **With Caps on, one isolated R press/release turns Caps off without arming Shift.** This is an approved deliberate difference from the original design's inverse-Shift behavior. R inside a direction group remains the third-letter key and cannot toggle Caps. Shift/Caps applies to the international letters below; `ß` stays `ß`, never two letters. Rejected capacity-limited edits do not consume Shift. A failed save preserves Shift/Caps as well as the document.
 
-The bottom status bar reads **filename → active letter group → SHIFT/CAPS**. The filename starts at x=8 (128-pixel slot), the group at x=144 (32-pixel slot), and Shift/Caps at x=184 (48-pixel slot): hold Up to see `abc`, or `ABC` with Shift/Caps; all normal and held-L groups follow the same rule. Release the direction to clear it; diagonals and START navigation show no letter group. `*` marks unsaved changes. Transient messages occupy only the filename slot, leaving capitalization and group visible.
+The bottom status bar reads **filename → active letter group → Shift/Caps**. The filename starts at x=8 (128-pixel slot), the group at x=144 (32-pixel slot), and Shift/Caps at x=184 (48-pixel slot): hold Up to see `abc`, or `ABC` with Shift/Caps; all normal and held-L groups follow the same rule. Release the direction to clear it; diagonals and START navigation show no letter group. `*` marks unsaved changes. Transient messages occupy only the filename slot, leaving capitalization and group visible.
 
 ### START commands
 

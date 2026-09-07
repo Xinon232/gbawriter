@@ -44,7 +44,7 @@ jobs:
       - name: Upload ROM and ELF
         uses: actions/upload-artifact@v4
         with:
-          name: GBAWriter-v0.2.0
+          name: GBAWriter-v0.2.1
           path: |
             gbawriter.gba
             gbawriter.elf

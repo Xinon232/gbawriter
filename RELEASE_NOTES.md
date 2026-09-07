@@ -1,8 +1,17 @@
-# GBA Writer v0.2.0 — hardware-unverified prerelease
+# GBA Writer v0.2.1 — hardware-unverified prerelease
 
-## Changes from v0.1.0
+## Changes from v0.2.0
 
-- Bottom status bar in **filename → active letter group → SHIFT/CAPS** order, at x=8 / 144 / 184 respectively. All normal/L-layer groups show lowercase or uppercase with Shift/Caps, including while a transient save message is displayed.
+- Hold **A alone** to repeat spaces or **B alone** to repeat UTF-8 codepoint backspace. The existing START-navigation timer is shared: immediate initial edit, first repeat after **24 frames**, then every **5 frames**.
+- Repeat requires a fresh isolated press. Any additional button cancels it; chord/modifier release tails cannot rearm it. Letter, SELECT, save and status-toggle chords keep their existing press/release behavior.
+- Status labels now read **Shift** and **Caps**, retaining x=184 / y=144 and all filename/group/body positions.
+- Added exact-timing, release/rearm, direct-switch, chord-exclusion, capacity and multibyte-backspace regressions; real-font full-framebuffer tests cover the titlecase labels at unchanged coordinates.
+- Release includes **GBA-Writer-Controls.pdf**, the complete controller reference, credited to **Halim Jarrar**, **(C) 2026**. `SHA256SUMS.txt` covers both ROM and PDF.
+- Storage, fonts, help pages and unrelated behavior are unchanged.
+
+## Retained v0.2.0 changes
+
+- Bottom status bar in **filename → active letter group → Shift/Caps** order, at x=8 / 144 / 184 respectively. All normal/L-layer groups show lowercase or uppercase with Shift/Caps, including while a transient save message is displayed.
 - Body text starts at y=0, retaining 16-pixel glyphs, 18-pixel line pitch and the six-pixel reserved gutter above the y=144 bar: seven complete rows with the bar, nine in full-screen mode.
 - **START+SELECT** toggles the bar in the editor only. Either press order works; a live SELECT provisional is rolled back without changing prior text, caret or dirty state. One toggle per chord, with no typing, newline, save, or misleading save feedback; rearm after both chord keys release.
 - Isolated R taps cycle **normal → Shift → Caps → normal**, with **no timing window**. One-shot Shift, rejected-edit safety, international letters and all grouped R/G/V behavior remain unchanged.

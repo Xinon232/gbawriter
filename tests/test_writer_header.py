@@ -15,8 +15,8 @@ compact = re.sub(r'\s+', '', main)
 assert 'writer::format(buffer,sizeof(buffer),"%s%s",app.text().dirty()?"*":"",storage.current_name());line(px,8,writer::STATUS_Y,buffer,128);' in compact
 assert 'if(app.status_visible()){' in compact
 assert 'line(px,144,writer::STATUS_Y,app.active_group(),32);' in compact, 'active group must be between filename and Shift/Caps'
-assert 'line(px,184,writer::STATUS_Y,"SHIFT",48);' in compact
-assert 'line(px,184,writer::STATUS_Y,"CAPS",48);' in compact
+assert 'line(px,184,writer::STATUS_Y,"Shift",48);' in compact
+assert 'line(px,184,writer::STATUS_Y,"Caps",48);' in compact
 assert 'app.viewport()+app.view_rows()' in compact
 assert 'y=writer::TEXT_Y+(row-app.viewport())*writer::TEXT_PITCH' in compact
 assert 'y=writer::TEXT_Y+(caret.row-app.viewport())*writer::TEXT_PITCH' in compact

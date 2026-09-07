@@ -83,6 +83,29 @@ int main() {
   a.frame(key(Button::SELECT));a.frame(key(Button::SELECT)|key(Button::RIGHT));
   a.frame(key(Button::SELECT)|key(Button::RIGHT)|key(Button::A));a.frame(0);
   assert(a.shift() && a.text().data()[TEXT_CAPACITY-1]=='(');
+  // Held spaces stop safely at capacity without consuming Shift.
+  a.frame(0);a.text().set_text(std::string(TEXT_CAPACITY-2,'x').c_str());
+  a.layout().reflow(a.text(),220,width);
+  for(int i=0;i<100;++i)a.frame(key(Button::A));
+  assert(a.text().bytes()==TEXT_CAPACITY && a.shift() && a.caret_visible());
+  assert(a.text().data()[TEXT_CAPACITY-2]==' ' && a.text().data()[TEXT_CAPACITY-1]==' ');
+  a.frame(0);
+  // UTF-8 backspace repeats at complete codepoint boundaries, including empty.
+  a.text().set_text("aé€😀");a.layout().reflow(a.text(),220,width);
+  a.frame(key(Button::B));assert(std::string(a.text().data())=="aé€");
+  for(int i=1;i<24;++i)a.frame(key(Button::B));
+  assert(std::string(a.text().data())=="aé€");
+  a.frame(key(Button::B));assert(std::string(a.text().data())=="aé");
+  for(int i=0;i<5;++i)a.frame(key(Button::B));
+  assert(std::string(a.text().data())=="a");
+  for(int i=0;i<100;++i)a.frame(key(Button::B));
+  assert(!a.text().bytes() && !a.text().caret_byte() && a.shift());
+  a.frame(0);a.text().set_text("aé€");a.text().set_caret(3);
+  a.layout().reflow(a.text(),220,width);
+  for(int i=0;i<100;++i)a.frame(key(Button::B));
+  assert(std::string(a.text().data())=="€" && !a.text().caret_byte());
+  a.frame(0);a.frame(key(Button::A));assert(std::string(a.text().data())==" €");
+  a.frame(0);
   std::filesystem::remove_all(root);
   std::cout
       << "PASS: writer app storage/UI tracer workflow and failure safety\n";

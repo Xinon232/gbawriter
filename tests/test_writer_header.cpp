@@ -51,16 +51,16 @@ static void editor_positions(){
   for(int mode=0;mode<3;++mode){
     for(int layer=0;layer<2;++layer)for(int d=0;d<4;++d){
       app.frame(key(dirs[d])|(layer?key(Button::L):0));
-      compare(true,(mode?upper:lower)[layer*4+d],mode==1?"SHIFT":mode==2?"CAPS":"");
-      app.frame(0);compare(true,"",mode==1?"SHIFT":mode==2?"CAPS":"");
+      compare(true,(mode?upper:lower)[layer*4+d],mode==1?"Shift":mode==2?"Caps":"");
+      app.frame(0);compare(true,"",mode==1?"Shift":mode==2?"Caps":"");
     }
     tap(key(Button::R));
   }
   // Saving feedback occupies only the file slot; the two indicators survive.
   tap(key(Button::R));tap(key(Button::START)|key(Button::A));app.frame(key(Button::UP));
-  assert(app.message()[0]);compare(true,"ABC","SHIFT");app.frame(0);
+  assert(app.message()[0]);compare(true,"ABC","Shift");app.frame(0);
   tap(key(Button::START)|key(Button::SELECT));compare(false,"","");
-  tap(key(Button::START)|key(Button::SELECT));compare(true,"","SHIFT");
+  tap(key(Button::START)|key(Button::SELECT));compare(true,"","Shift");
   std::filesystem::remove_all(root);
   std::cout<<"PASS: actual editor pixels: file/group/case, text/caret top, gutter, 7/9 rows and toggles\n";
 }
@@ -106,7 +106,7 @@ int main(int argc, char **argv) {
   editor_positions();
   for(const char* label:{"abc","def","hij","klm","nop","qrs","tuw","xyz",
                          "ABC","DEF","HIJ","KLM","NOP","QRS","TUW","XYZ",
-                         "SHIFT","CAPS","UP/DOWN: FIELD  LEFT/RIGHT: +/-"}){
+                         "Shift","Caps","UP/DOWN: FIELD  LEFT/RIGHT: +/-"}){
     unsigned limit=std::strlen(label)==3?32:std::strlen(label)<=5?48:224;
     unsigned width=font_width(label);assert(width<=limit);
     std::cout<<"WIDTH: "<<label<<" = "<<width<<" / "<<limit<<" pixels\n";
