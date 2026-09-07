@@ -1,20 +1,29 @@
-name: Build GBA ROM
+name: Build GBA Writer ROM
 
 on:
   push:
-    branches:
-      - release/v0.5.0
+    branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
+  host-fatfs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out GBA Writer
+        uses: actions/checkout@v4
+      - name: Install sector-image test dependencies
+        run: sudo apt-get update && sudo apt-get install -y gcc g++ python3 dosfstools
+      - name: Test actual FatFS and interrupted-save recovery
+        run: python3 tests/run_fatfs_tests.py
   build:
     runs-on: ubuntu-latest
     container: devkitpro/devkitarm:20260610
     steps:
-      - name: Check out GBAReader
+      - name: Check out GBA Writer
         uses: actions/checkout@v4
       - name: Check out pinned Butano
         uses: actions/checkout@v4
@@ -24,24 +33,19 @@ jobs:
           path: _butano
       - name: Run host tests
         run: bash tests/run_host_tests.sh
-      - name: Build complete ROM
+      - name: Build complete ROM and check memory
         env:
           DEVKITPRO: /opt/devkitpro
           DEVKITARM: /opt/devkitpro/devkitARM
-        run: make -j2 LIBBUTANO="$GITHUB_WORKSPACE/_butano/butano"
-      - name: Verify ROM exists
-        run: test -s gbareader.gba
-      - name: Upload complete ROM
+        run: |
+          make -j2 LIBBUTANO="$GITHUB_WORKSPACE/_butano/butano"
+          make memory-check LIBBUTANO="$GITHUB_WORKSPACE/_butano/butano"
+          test -s gbawriter.gba
+      - name: Upload ROM and ELF
         uses: actions/upload-artifact@v4
         with:
-          name: GBAReader-v0.5.0
-          path: gbareader.gba
+          name: GBAWriter-v0.1.0
+          path: |
+            gbawriter.gba
+            gbawriter.elf
           if-no-files-found: error
-      - name: Publish v0.5.0 ROM release
-        if: startsWith(github.ref, 'refs/heads/release/v0.5.0')
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v0.5.0
-          name: GBAReader v0.5.0
-          generate_release_notes: true
-          files: gbareader.gba

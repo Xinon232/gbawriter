@@ -17,6 +17,18 @@ g++ "${CXXFLAGS[@]}" \
 "$OUT/test_reader_core"
 
 g++ "${CXXFLAGS[@]}" \
+    "$ROOT/tests/test_writer_core.cpp" "$ROOT/src/writer_core.cpp" \
+    -o "$OUT/test_writer_core"
+"$OUT/test_writer_core"
+
+for suite in test_writer_app test_writer_layout test_writer_storage test_writer_frames test_writer_format test_text_model_differential; do
+    g++ "${CXXFLAGS[@]}" "$ROOT/tests/$suite.cpp" \
+        "$ROOT/src/writer_core.cpp" "$ROOT/src/writer_layout.cpp" \
+        "$ROOT/src/writer_storage.cpp" "$ROOT/src/writer_app.cpp" "$ROOT/src/writer_format.cpp" -o "$OUT/$suite"
+    "$OUT/$suite"
+done
+
+g++ "${CXXFLAGS[@]}" \
     "$ROOT/tests/test_reader_ui_state.cpp" "$ROOT/src/reader_ui_state.cpp" \
     -o "$OUT/test_reader_ui_state"
 "$OUT/test_reader_ui_state"
@@ -89,4 +101,10 @@ python3 "$ROOT/references/superfw/res/fonts/generator.py" \
     --output "$OUT/reader-symbols.pack" >/dev/null
 cmp "$ROOT/references/superfw/res/reader-symbols.pack" "$OUT/reader-symbols.pack"
 
+gcc -std=c11 -Wall -Wextra -Werror -Wno-unused-parameter -Wno-old-style-declaration -Wno-discarded-qualifiers -I"$ROOT/references/superfw/src" -I"$ROOT/references/superfw/src/fonts" \
+    "$ROOT/tests/test_writer_glyph_runtime.c" -o "$OUT/test_writer_glyph_runtime"
+python3 "$ROOT/tests/extract_help.py" "$OUT/help.txt"
+(cd "$OUT" && ./test_writer_glyph_runtime "$ROOT/references/superfw/res/fonts.pack" "$ROOT/references/superfw/res/reader-symbols.pack" "$OUT/help.txt")
 python3 "$ROOT/tests/test_source_contracts.py"
+python3 "$ROOT/tests/test_memory_gate.py"
+python3 "$ROOT/tests/test_writer_header.py"

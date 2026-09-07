@@ -1,407 +1,108 @@
-// GBA Reader v0.5.0 -- streaming Supercard SD TXT/EPUB reader.
-
+// GBA Writer: GBAReader v0.5.0 SuperFW / Butano / Supercard foundation.
 #include "bn_bg_palette_item.h"
 #include "bn_core.h"
 #include "bn_keypad.h"
 #include "bn_palette_bitmap_bg_painter.h"
 #include "bn_palette_bitmap_bg_ptr.h"
-#include "bn_sprite_text_generator.h"
 #include "bn_sprite_items_ui_variable_8x16_font.h"
 #include "bn_sprite_ptr.h"
-#include "bn_string.h"
+#include "bn_sprite_text_generator.h"
 #include "bn_vector.h"
-
 #include "common_variable_8x16_sprite_font.h"
 extern "C" {
 #include "font_render.h"
 }
-#include "reader_core.h"
-#include "reader_ui_state.h"
-#include "epub_document.h"
-#include "reader_file.h"
-
+#include "writer_app.h"
+#include <cstdio>
+#include "writer_format.h"
 #include <cstring>
-
 namespace {
-
-enum class Scene { LIBRARY, READER, SETTINGS };
-
-constexpr bn::color palette_colors[16] = {
-    bn::color(31, 31, 31), bn::color(0, 0, 0), bn::color(12, 12, 12), bn::color(20, 20, 20),
-    bn::color(), bn::color(), bn::color(), bn::color(), bn::color(), bn::color(), bn::color(),
-    bn::color(), bn::color(), bn::color(), bn::color(), bn::color()
+constexpr bn::color colors[16]={bn::color(31,31,31),bn::color(0,0,0),bn::color(12,12,12),bn::color(20,20,20)};
+constexpr bn::bg_palette_item palette(bn::span<const bn::color>(colors),bn::bpp_mode::BPP_8);
+int glyph_width(const char* text){return int(font_width(text));}
+// .sbss is the devkitARM/Butano linker-script EWRAM BSS section, NOT IWRAM.
+__attribute__((section(".sbss"))) writer::Storage storage;
+__attribute__((section(".sbss"))) writer::Application app(storage,glyph_width);
+using Sprites=bn::vector<bn::sprite_ptr,128>;
+void line(uint8_t* px,int x,int y,const char* s,int max=224){draw_text_idx8_bus16_range(s,px+y*240+x,0,max,240,1);}
+void pixel(uint8_t* px,int x,int y){
+ // GBA VRAM does not support byte stores. Preserve the adjacent indexed pixel.
+ volatile uint16_t* p=reinterpret_cast<volatile uint16_t*>(px+y*240+(x&~1));
+ *p=(x&1)?uint16_t((*p&0x00ff)|0x0100):uint16_t((*p&0xff00)|1);
+}
+void title(bn::sprite_text_generator& ui,Sprites& sprites,const char* text){ui.set_center_alignment();ui.generate(0,-68,text,sprites);}
+const char* const help[writer::Application::HELP_PAGES][6]={
+ {"NORMAL LETTERS","D-pad holds a letter group","B = first  A = second  R = third","UP: ABC    RIGHT: DEF","DOWN: HIJ  LEFT: KLM","Release group for next session"},
+ {"HOLD L: SECOND LAYER","L is held, never a toggle","B = first  A = second  R = third","L+UP: NOP   L+RIGHT: QRS","L+DOWN: TUW L+LEFT: XYZ","R in a group is a letter"},
+ {"SPECIAL LETTERS / BASIC EDIT","Keep DOWN held: R,R = g","Keep L+DOWN held: R,R = v","Release between R presses: jj/ww","A alone: space  B: backspace","START release alone: newline"},
+ {"SHIFT / CAPS","R alone, release: Shift next","Next alphabetic letter uppercase","R,R quickly: CAPS on","CAPS on? One R turns CAPS off","Digits/signs do not use Shift"},
+ {"START: NAVIGATE","Hold START + LEFT/RIGHT","Move one UTF-8 character","START+UP/DOWN: visual rows","START+L/R: previous/next page","Navigation never types letters"},
+ {"START: SAVE","START+A: save this file","START+B: save, then main menu","Save failure keeps your text","Release START after command:","No accidental newline"},
+ {"SELECT: ONE LIVE CHARACTER","Press SELECT: inserts . now","Hold SELECT to replace it","Release SELECT to commit one","UP: 1 2 3 4 5 6 7 8 9 0","DOWN: 0 9 8 7 6 5 4 3 2 1"},
+ {"SELECT: COMMON PUNCTUATION","SELECT+R forward:",". , ' \" : ! ? .","SELECT+L reverse:",". ? ! : \" ' , .","A letter chord takes priority"},
+ {"SELECT: ADDITIONAL SIGNS","SELECT+RIGHT forward:",". ( ) / ; @ # % & _ + = - .","SELECT+LEFT: exact reverse","Every step replaces one glyph","No extra characters appended"},
+ {"INTERNATIONAL LETTERS 1","A: á ä à â ã å æ","C: ç č ć  E: é è ë ê","I: í ï ì î","N: ñ ń","SELECT + normal letter chord"},
+ {"INTERNATIONAL LETTERS 2","O: ó ö ô ò õ ø œ","S: ß š ś  U: ü ú ù û","Y: ý ÿ  Z: ž ź ż","L-layer chords work here too","Shift / CAPS applies to accents"},
+ {"INTERNATIONAL CYCLING","Keep SELECT + group held","Repeat final B/A/R to cycle","E chord: é è ë ê, then é","Release SELECT to commit","ß stays ß, even with CAPS"}
 };
-constexpr bn::bg_palette_item palette_item(bn::span<const bn::color>(palette_colors), bn::bpp_mode::BPP_8);
-
-BN_DATA_EWRAM_BSS reader::ReaderFile file;
-BN_DATA_EWRAM_BSS reader::EpubDocument epub;
-BN_DATA_EWRAM_BSS reader::Page page;
-BN_DATA_EWRAM_BSS reader::PageHistory history;
-BN_DATA_EWRAM_BSS reader::PageHistoryRebuild history_rebuild;
-reader::Settings settings;
-
-constexpr int UI_SPRITE_CAPACITY = 127;
-constexpr int SAVE_OVERLAY_SPRITE_CAPACITY = 16;
-constexpr int LIBRARY_VISIBLE_ROWS = 4;
-constexpr int LIBRARY_DISPLAY_CHARACTERS = 15;
-constexpr int LIBRARY_WORST_CASE_SPRITES =
-        int(sizeof("GBA Reader v0.5.0") - 1) +
-        LIBRARY_VISIBLE_ROWS * (2 + LIBRARY_DISPLAY_CHARACTERS) +
-        int(sizeof("UP/DOWN select   A open") - 1);
-static_assert(UI_SPRITE_CAPACITY <= 128);
-static_assert(LIBRARY_WORST_CASE_SPRITES < 128);
-
-int glyph_width(uint32_t cp)
-{
-    char text[5]{};
-    if(cp < 0x80) text[0] = char(cp);
-    else if(cp < 0x800) {
-        text[0] = char(0xC0 | (cp >> 6)); text[1] = char(0x80 | (cp & 0x3F));
-    } else if(cp < 0x10000) {
-        text[0] = char(0xE0 | (cp >> 12)); text[1] = char(0x80 | ((cp >> 6) & 0x3F));
-        text[2] = char(0x80 | (cp & 0x3F));
-    } else {
-        text[0] = char(0xF0 | (cp >> 18)); text[1] = char(0x80 | ((cp >> 12) & 0x3F));
-        text[2] = char(0x80 | ((cp >> 6) & 0x3F)); text[3] = char(0x80 | (cp & 0x3F));
-    }
-    return int(font_width(text));
+void render(bn::palette_bitmap_bg_painter& painter,bn::sprite_text_generator& ui,Sprites& sprites){
+ sprites.clear();painter.fill(0);auto* px=reinterpret_cast<uint8_t*>(painter.page().data());char buffer[writer::FILE_NAME_SIZE + 2]; // Complete filename + dirty prefix + NUL; clip pixels, not UTF-8 bytes.
+ using writer::Scene;
+ switch(app.scene()){
+ case Scene::MENU:
+  title(ui,sprites,"GBA WRITER");ui.generate(0,-22,app.menu_selection()==0?"> NEW FILE":"  NEW FILE",sprites);ui.generate(0,2,app.menu_selection()==1?"> LOAD FILE":"  LOAD FILE",sprites);line(px,36,132,"SELECT: CONTROLS");break;
+ case Scene::DATE:{
+  title(ui,sprites,"NEW FILE");auto d=app.date();
+  writer::format(buffer,sizeof(buffer),"%c DAY     %02d",app.date_field()==0?'>':' ',d.day);line(px,38,34,buffer);
+  writer::format(buffer,sizeof(buffer),"%c MONTH   %02d",app.date_field()==1?'>':' ',d.month);line(px,38,54,buffer);
+  writer::format(buffer,sizeof(buffer),"%c YEAR    %04d",app.date_field()==2?'>':' ',d.year);line(px,38,74,buffer);
+  line(px,8,108,"LEFT/RIGHT: FIELD  UP/DOWN: +/-");line(px,28,136,"A: CREATE   B: BACK");break;}
+ case Scene::LOAD:{
+  title(ui,sprites,"LOAD FILE");if(!storage.count())line(px,48,64,"NO TXT FILES");
+  int first=(app.selected_file()/6)*6;
+  for(int i=first;i<storage.count()&&i<first+6;++i){int y=24+(i-first)*18;line(px,6,y,i==app.selected_file()?">":" ");line(px,18,y,storage.name(i),216);}
+  line(px,8,138,"UP/DOWN  A: OPEN  B: BACK");break;}
+ case Scene::HELP:
+  writer::format(buffer,sizeof(buffer),"CONTROLS %d/%d",app.help_page()+1,writer::Application::HELP_PAGES);title(ui,sprites,buffer);
+  for(int row=0;row<6;++row){line(px,8,24+row*18,help[app.help_page()][row]);}line(px,8,138,"LEFT/RIGHT: PAGE  B: BACK");break;
+ case Scene::ERROR:
+  title(ui,sprites,"PLEASE NOTE");line(px,8,42,app.message());
+  if(!std::strcmp(app.message(),"FILE ALREADY EXISTS")){char name[13];writer::format_diary_name(app.date(),name);line(px,48,64,name);line(px,20,88,"CHOOSE ANOTHER DATE");}
+  else if(!std::strcmp(app.message(),"RECOVERY: CHECK SD ON PC")){line(px,8,66,"Preserved recovery copies.");line(px,8,86,"Back up SD before repair.");}
+  line(px,70,132,"A: OK");break;
+ case Scene::EDITOR:{
+  if(app.message()[0])line(px,8,0,app.message());else{
+   writer::format(buffer,sizeof(buffer),"%s%s",app.text().dirty()?"* ":"",storage.current_name());line(px,8,0,buffer,164);
+   if(app.caps())line(px,184,0,"CAPS",48);else if(app.shift())line(px,184,0,"SHIFT",48);
+  }
+  auto& text=app.text();auto& layout=app.layout();const char* s=text.data();
+  int last=app.viewport()+writer::VIEW_ROWS;if(last>layout.rows())last=layout.rows();
+  for(int row=app.viewport();row<last;++row){int x=8,y=22+(row-app.viewport())*18;std::size_t end=row+1<layout.rows()?layout.row_start(row+1):text.bytes();
+   for(std::size_t p=layout.row_start(row);p<end;){char ch[5];p=writer::Layout::character(s,p,ch);if(ch[0]=='\n')break;int w=layout.width(ch);if(w&&ch[0]!='\t')line(px,x,y,ch,228-x);x+=w;}
+  }
+  auto caret=layout.position(text,text.caret_byte());if(app.caret_visible()&&caret.row>=app.viewport()&&caret.row<last){int x=8+caret.x,y=22+(caret.row-app.viewport())*18;for(int j=0;j<16;++j)pixel(px,x,y+j);}
+  break;}
+ default: break;
+ }
+ painter.flip_page_later();
 }
-
-void draw_page(bn::palette_bitmap_bg_painter& painter)
-{
-    painter.fill(0);
-    uint8_t* pixels = reinterpret_cast<uint8_t*>(painter.page().data());
-    int y = settings.top_margin;
-    for(int line = 0; line < page.line_count; ++line) {
-        if(page.lines[line].text[0])
-            draw_text_idx8_bus16_range(
-                    page.lines[line].text,
-                    pixels + y * 240 + reader::BODY_SIDE_MARGIN,
-                    0,
-                    reader::SCREEN_WIDTH - reader::BODY_SIDE_MARGIN * 2,
-                    240,
-                    1);
-        if(line + 1 < page.line_count) {
-            y += reader::FONT_HEIGHT + settings.line_spacing;
-            if(page.lines[line].paragraph_break) y += reader::FONT_HEIGHT + settings.line_spacing;
-        }
-    }
-    painter.flip_page_later();
+uint16_t keys(){
+ using writer::Button;uint16_t result=0;
+ const bool held[]={bn::keypad::up_held(),bn::keypad::down_held(),bn::keypad::left_held(),bn::keypad::right_held(),bn::keypad::a_held(),bn::keypad::b_held(),bn::keypad::l_held(),bn::keypad::r_held(),bn::keypad::start_held(),bn::keypad::select_held()};
+ for(unsigned i=0;i<10;++i){if(held[i])result|=1u<<i;}return result;
 }
-
-bool epub_name(const char* name)
-{
-    int length = 0;
-    while(name && name[length]) ++length;
-    if(length <= 5) return false;
-    const char* ext = name + length - 5;
-    const char expected[] = ".epub";
-    for(int i = 0; i < 5; ++i) {
-        char c = ext[i];
-        if(c >= 'A' && c <= 'Z') c = char(c + ('a' - 'A'));
-        if(c != expected[i]) return false;
-    }
-    return true;
 }
-
-void add_text(bn::sprite_text_generator& generator, int x, int y, const char* text,
-              bn::vector<bn::sprite_ptr, UI_SPRITE_CAPACITY>& sprites)
-{
-    generator.generate(x, y, text, sprites);
-}
-
-void show_overlay(bn::sprite_text_generator& generator,
-                  bn::vector<bn::sprite_ptr, SAVE_OVERLAY_SPRITE_CAPACITY>& sprites,
-                  const char* text)
-{
-    sprites.clear();
-    generator.set_right_alignment();
-    generator.set_bg_priority(0);
-    generator.set_z_order(-32767);
-    generator.generate(112, 64, text, sprites);
-    for(bn::sprite_ptr& sprite : sprites) sprite.put_above();
-    generator.set_z_order(0);
-    generator.set_center_alignment();
-}
-
-void show_saving_overlay(bn::sprite_text_generator& generator,
-                         bn::vector<bn::sprite_ptr, SAVE_OVERLAY_SPRITE_CAPACITY>& sprites)
-{
-    show_overlay(generator, sprites, "save...");
-}
-
-void show_save_result(bn::sprite_text_generator& generator,
-                      bn::vector<bn::sprite_ptr, SAVE_OVERLAY_SPRITE_CAPACITY>& sprites,
-                      bool saved)
-{
-    show_overlay(generator, sprites, reader::save_result_string(saved));
-}
-
-void library_display_name(const char* name, char* output)
-{
-    int input = 0;
-    int out = 0;
-    int characters = 0;
-    while(name[input] && characters < LIBRARY_DISPLAY_CHARACTERS) {
-        unsigned char lead = static_cast<unsigned char>(name[input]);
-        int bytes = lead < 0x80 ? 1 : (lead & 0xE0) == 0xC0 ? 2 :
-                    (lead & 0xF0) == 0xE0 ? 3 : (lead & 0xF8) == 0xF0 ? 4 : 1;
-        int available = 1;
-        while(available < bytes && name[input + available] &&
-              (static_cast<unsigned char>(name[input + available]) & 0xC0) == 0x80) ++available;
-        if(available != bytes) bytes = 1;
-        for(int i = 0; i < bytes; ++i) output[out++] = name[input++];
-        ++characters;
-    }
-    output[out] = 0;
-}
-
-}
-
-int main()
-{
-    bn::core::init();
-    bn::palette_bitmap_bg_ptr background = bn::palette_bitmap_bg_ptr::create(palette_item);
-    bn::palette_bitmap_bg_painter painter(background);
-    painter.fill(0);
-    painter.flip_page_later();
-
-    bn::sprite_font ui_font(
-            bn::sprite_items::ui_variable_8x16_font,
-            common::variable_8x16_sprite_font_utf8_characters_map.reference(),
-            common::variable_8x16_sprite_font_character_widths);
-    bn::sprite_text_generator ui(ui_font);
-    ui.set_palette_item(bn::sprite_items::ui_variable_8x16_font.palette_item());
-    bn::vector<bn::sprite_ptr, UI_SPRITE_CAPACITY> sprites;
-    bn::sprite_text_generator save_ui(ui_font);
-    save_ui.set_palette_item(bn::sprite_items::ui_variable_8x16_font.palette_item());
-    bn::vector<bn::sprite_ptr, SAVE_OVERLAY_SPRITE_CAPACITY> save_sprites;
-
-    settings = reader::default_settings();
-    bool storage_ok = reader::storage_init();
-    Scene scene = Scene::LIBRARY;
-    int selected = 0;
-    int settings_row = 0;
-    // Deliberately session-only: shoulder page turns always start disabled.
-    bool shoulder_page_turns = false;
-    bool redraw_ui = true;
-    bool redraw_page = false;
-    const char* open_name = nullptr;
-    const reader::ByteSource* active_source = &file;
-    const char* library_status = nullptr;
-    reader::SaveMessageTimer save_message_timer{};
-    bool pending_back = false;
-
-    while(true) {
-        if(scene == Scene::LIBRARY) {
-            if(bn::keypad::up_pressed() && selected > 0) { --selected; library_status = nullptr; redraw_ui = true; }
-            if(bn::keypad::down_pressed() && selected + 1 < reader::library_count()) { ++selected; library_status = nullptr; redraw_ui = true; }
-            if(bn::keypad::a_pressed() && reader::library_count()) {
-                library_status = nullptr;
-                if(! file.open_read_only(reader::library_name(selected))) {
-                    library_status = "Book open failed";
-                    redraw_ui = true;
-                } else {
-                  open_name = reader::library_name(selected);
-                active_source = &file;
-                if(epub_name(open_name)) {
-                    if(epub.open(file)) active_source = &epub;
-                    else library_status = reader::epub_error_string(epub.error());
-                }
-                uint32_t offset = 0;
-                reader::TxtSaveFooter footer{};
-                const bool footer_loaded = file.saved_footer(footer);
-                if(footer_loaded) { settings = footer.settings; offset = footer.byte_offset; }
-                bool page_open = ! library_status && reader::open_page_at(
-                        *active_source, offset, settings, glyph_width, history, page);
-                const bool saved_page_open = footer_loaded && page_open;
-                if(! page_open && ! library_status)
-                    page_open = reader::open_first_page(
-                            *active_source, settings, glyph_width, history, page);
-                if(page_open) {
-                    history_rebuild = {};
-                    if(saved_page_open) {
-                        history = footer.history;
-                        history_rebuild = footer.history_rebuild;
-                        if(history.lazy && history_rebuild.state == reader::HistoryRebuildState::IDLE)
-                            reader::begin_history_rebuild(page.start_offset, history_rebuild);
-                    }
-                    pending_back = false;
-                    reader::cancel_save_message(save_message_timer);
-                    save_sprites.clear();
-                    // Build the immutable ZIP cache after a usable first page exists.  This is
-                    // intentionally not part of later bookmark saves, which append state only.
-                    if(active_source == &epub && !epub.optimized_size()) {
-                        show_overlay(save_ui, save_sprites, "Preparing cache...");
-                        bn::core::update();
-                        reader::TxtSaveFooter cache_state{page.start_offset, settings, history,
-                                                          history_rebuild};
-                        if(file.save_footer(cache_state, &epub)) {
-                            epub.close();
-                            if(epub.open(file)) active_source = &epub;
-                        }
-                        save_sprites.clear();
-                    }
-                    scene = Scene::READER;
-                    sprites.clear();
-                    redraw_page = true;
-                } else {
-                    if(! library_status) library_status = epub_name(open_name) ?
-                            reader::epub_error_string(epub.error()) : "Book read failed";
-                    epub.close();
-                    file.close();
-                    open_name = nullptr;
-                    redraw_ui = true;
-                }
-                }
-            }
-        } else if(scene == Scene::READER) {
-            reader::Page next{};
-            const bool forward_pressed = bn::keypad::right_pressed() || bn::keypad::a_pressed() ||
-                                         (shoulder_page_turns && bn::keypad::r_pressed());
-            const bool back_pressed = bn::keypad::left_pressed() || bn::keypad::b_pressed() ||
-                                      (shoulder_page_turns && bn::keypad::l_pressed());
-            if(bn::keypad::up_pressed()) {
-                shoulder_page_turns = ! shoulder_page_turns;
-            } else if(forward_pressed) {
-                if(pending_back) save_sprites.clear();
-                pending_back = false;
-                if(reader::next_page(*active_source, settings, glyph_width, history, page, next)) {
-                    page = next;
-                    redraw_page = true;
-                }
-            } else if(back_pressed) {
-                if(reader::previous_page(*active_source, settings, glyph_width, history, next)) {
-                    page = next;
-                    redraw_page = true;
-                } else if(history_rebuild.state == reader::HistoryRebuildState::BUILDING ||
-                          history_rebuild.state == reader::HistoryRebuildState::READY) {
-                    pending_back = true;
-                    reader::cancel_save_message(save_message_timer);
-                    show_overlay(save_ui, save_sprites, "Loading back...");
-                }
-            } else if(bn::keypad::down_pressed()) {
-                pending_back = false;
-                history_rebuild = {};
-                reader::cancel_save_message(save_message_timer);
-                save_sprites.clear();
-                scene = Scene::SETTINGS;
-                redraw_ui = true;
-            } else if(bn::keypad::start_pressed()) {
-                pending_back = false;
-                reader::TxtSaveFooter footer{page.start_offset, settings, history, history_rebuild};
-                reader::cancel_save_message(save_message_timer);
-                show_saving_overlay(save_ui, save_sprites);
-                bn::core::update();
-                const bool saved = file.save_footer(
-                        footer, active_source == &epub ? active_source : nullptr);
-                show_save_result(save_ui, save_sprites, saved);
-                reader::start_save_message(save_message_timer);
-            } else if(bn::keypad::select_pressed()) {
-                pending_back = false;
-                history_rebuild = {};
-                reader::cancel_save_message(save_message_timer);
-                save_sprites.clear();
-                epub.close(); file.close(); open_name = nullptr;
-                scene = Scene::LIBRARY; redraw_ui = true;
-            }
-
-            const bool idle_frame = !bn::keypad::up_pressed() && !bn::keypad::down_pressed() &&
-                                    !bn::keypad::left_pressed() && !bn::keypad::right_pressed() &&
-                                    !bn::keypad::a_pressed() && !bn::keypad::b_pressed() &&
-                                    !bn::keypad::start_pressed() && !bn::keypad::select_pressed() &&
-                                    !bn::keypad::l_pressed() && !bn::keypad::r_pressed();
-            if(scene == Scene::READER && idle_frame &&
-               history_rebuild.state == reader::HistoryRebuildState::BUILDING)
-                reader::step_history_rebuild(
-                        *active_source, settings, glyph_width, history_rebuild);
-            if(scene == Scene::READER && history.count == 0 &&
-               history_rebuild.state == reader::HistoryRebuildState::READY &&
-               page.start_offset == history_rebuild.anchor) {
-                reader::adopt_rebuilt_history(history_rebuild, history);
-                if(pending_back) {
-                    pending_back = false;
-                    save_sprites.clear();
-                    if(reader::previous_page(
-                            *active_source, settings, glyph_width, history, next)) {
-                        page = next;
-                        redraw_page = true;
-                    }
-                }
-            }
-            if(history_rebuild.state == reader::HistoryRebuildState::FAILED && pending_back) {
-                pending_back = false;
-                save_sprites.clear();
-            }
-            if(scene == Scene::READER && active_source == &epub &&
-               epub.error() != reader::EpubError::NONE) {
-                pending_back = false;
-                history_rebuild = {};
-                reader::cancel_save_message(save_message_timer);
-                save_sprites.clear();
-                library_status = reader::epub_error_string(epub.error());
-                epub.close(); file.close(); open_name = nullptr;
-                scene = Scene::LIBRARY; redraw_ui = true;
-            }
-        } else {
-            if(bn::keypad::up_pressed() && settings_row > 0) { --settings_row; redraw_ui = true; }
-            if(bn::keypad::down_pressed() && settings_row < 2) { ++settings_row; redraw_ui = true; }
-            int delta = bn::keypad::left_pressed() ? -1 : bn::keypad::right_pressed() ? 1 : 0;
-            if(delta) {
-                reader::adjust_setting(settings, reader::SettingField(settings_row), delta);
-                reader::layout_page(*active_source, page.start_offset, settings, glyph_width, page);
-                redraw_ui = true;
-            }
-            if(bn::keypad::b_pressed() || bn::keypad::start_pressed()) {
-                uint32_t resume_offset = page.start_offset;
-                reader::open_page_at(*active_source, resume_offset, settings, glyph_width, history, page);
-                reader::begin_history_rebuild(resume_offset, history_rebuild);
-                pending_back = false;
-                save_sprites.clear();
-                scene = Scene::READER; sprites.clear(); redraw_page = true; redraw_ui = false;
-            }
-        }
-
-        if(scene == Scene::READER && reader::tick_save_message(save_message_timer))
-            save_sprites.clear();
-        if(redraw_page) { draw_page(painter); redraw_page = false; }
-        if(redraw_ui) {
-            painter.fill(0); painter.flip_page_later();
-            sprites.clear();
-            ui.set_center_alignment();
-            if(scene == Scene::LIBRARY) {
-                add_text(ui, 0, -68, "GBA Reader v0.5.0", sprites);
-                if(! storage_ok) add_text(ui, 0, -48, "Supercard SD not ready", sprites);
-                else if(! reader::library_count()) add_text(ui, 0, -48, "No TXT/EPUB in root", sprites);
-                else if(library_status) add_text(ui, 0, -48, library_status, sprites);
-                int first = selected > 1 ? selected - 1 : 0;
-                if(first + LIBRARY_VISIBLE_ROWS > reader::library_count())
-                    first = reader::library_count() > LIBRARY_VISIBLE_ROWS ?
-                            reader::library_count() - LIBRARY_VISIBLE_ROWS : 0;
-                for(int i = first; ! library_status && i < reader::library_count() &&
-                                   i < first + LIBRARY_VISIBLE_ROWS; ++i) {
-                    bn::string<68> label = i == selected ? "> " : "  ";
-                    char display_name[LIBRARY_DISPLAY_CHARACTERS * 4 + 1];
-                    library_display_name(reader::library_name(i), display_name);
-                    label += display_name;
-                    add_text(ui, 0, -44 + (i - first) * 16, label.data(), sprites);
-                }
-                add_text(ui, 0, 68, "UP/DOWN select   A open", sprites);
-            } else if(scene == Scene::SETTINGS) {
-                add_text(ui, 0, -62, "Reader settings", sprites);
-                const char* labels[3] = { "Line spacing", "Top margin", "Bottom margin" };
-                int values[3] = { settings.line_spacing, settings.top_margin,
-                                  settings.bottom_margin };
-                for(int i = 0; i < 3; ++i) {
-                    bn::string<48> row = i == settings_row ? "> " : "  ";
-                    row += labels[i]; row += ": "; row += bn::to_string<4>(values[i]);
-                    add_text(ui, 0, -28 + i * 22, row.data(), sprites);
-                }
-                add_text(ui, 0, 54, "LEFT/RIGHT change", sprites);
-                add_text(ui, 0, 68, "B/START close", sprites);
-            }
-            redraw_ui = false;
-        }
-        bn::core::update();
-    }
+int main(){
+ bn::core::init();auto bg=bn::palette_bitmap_bg_ptr::create(palette);bn::palette_bitmap_bg_painter painter(bg);
+ bn::sprite_font ui_font(bn::sprite_items::ui_variable_8x16_font,common::variable_8x16_sprite_font_utf8_characters_map.reference(),common::variable_8x16_sprite_font_character_widths);
+ bn::sprite_text_generator ui(ui_font);ui.set_palette_item(bn::sprite_items::ui_variable_8x16_font.palette_item());Sprites sprites;
+ app.boot();
+ while(true){
+  uint16_t snapshot=keys();
+  // Show feedback BEFORE potentially slow hardware operations. Never probe SD at boot.
+  bool checking=app.scene()==writer::Scene::MENU&&bn::keypad::a_pressed();
+  bool saving=(app.scene()==writer::Scene::DATE&&bn::keypad::a_pressed())||(app.scene()==writer::Scene::EDITOR&&bn::keypad::start_held()&&(bn::keypad::a_pressed()||bn::keypad::b_pressed()));
+  if(checking||saving){sprites.clear();painter.fill(0);line(reinterpret_cast<uint8_t*>(painter.page().data()),32,64,checking?"CHECKING SD...":"SAVING - DO NOT POWER OFF");painter.flip_page_later();bn::core::update();}
+  app.frame(snapshot);if(app.take_redraw())render(painter,ui,sprites);bn::core::update();
+ }
 }

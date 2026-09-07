@@ -1,8 +1,8 @@
 #---------------------------------------------------------------------------------------------------------------------
-# GBA Reader v0.5.0
+# GBA Writer v0.1.0
 #
 # Stack: butano + devkitPro devkitARM, C++.
-# Adapted from /home/hlm/butano/examples/text/Makefile (canonical butano template).
+# Adapted from the canonical Butano text example through GBAReader v0.5.0.
 #
 # Build:    make
 # Test:     make test    (runs ROM in mgba debugger, checks for opcode errors)
@@ -11,10 +11,10 @@
 # Requirements:
 #   - devkitPro installed at /opt/devkitpro
 #   - DEVKITARM and DEVKITPRO env vars set (set in ~/.bashrc)
-#   - butano at /home/hlm/butano/butano
+#   - LIBBUTANO set to the pinned Butano checkout (see README)
 #---------------------------------------------------------------------------------------------------------------------
 
-TARGET      :=  gbareader
+TARGET      :=  gbawriter
 BUILD       :=  build
 LIBBUTANO   ?=  /path/to/butano/butano
 PYTHON      :=  python3
@@ -29,12 +29,12 @@ AUDIOBACKEND :=  null
 AUDIOTOOL   :=
 DMGAUDIO    :=
 DMGAUDIOBACKEND :=  null
-ROMTITLE    :=  GBA READER
-ROMCODE     :=  AGBR
+ROMTITLE    :=  GBA WRITER
+ROMCODE     :=  AGBW
 # Optional Supercard second-ROM-mirror transfers. Default 0 preserves the
 # release-safe path; use `make SC_FAST_ROM_MIRROR=1 ...` only for hardware tests.
 SC_FAST_ROM_MIRROR ?= 0
-USERFLAGS   :=  -DSC_FAST_ROM_MIRROR=$(SC_FAST_ROM_MIRROR)
+USERFLAGS   :=  -DSC_FAST_ROM_MIRROR=$(SC_FAST_ROM_MIRROR) -fstack-usage
 USERCXXFLAGS :=
 USERASFLAGS :=
 USERLDFLAGS :=
@@ -63,7 +63,9 @@ include $(LIBBUTANOABS)/butano.mak
 #---------------------------------------------------------------------------------------------------------------------
 ROM := $(TARGET).gba
 
-.PHONY: test host-test
+.PHONY: test host-test memory-check
+memory-check:
+	@python3 tests/check_memory.py $(TARGET).elf --build $(BUILD)
 host-test:
 	@./tests/run_host_tests.sh
 
