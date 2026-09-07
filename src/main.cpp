@@ -35,7 +35,7 @@ const char* const help[writer::Application::HELP_PAGES][6]={
  {"NORMAL LETTERS","D-pad holds a letter group","B = first  A = second  R = third","UP: ABC    RIGHT: DEF","DOWN: HIJ  LEFT: KLM","Release group for next session"},
  {"HOLD L: SECOND LAYER","L is held, never a toggle","B = first  A = second  R = third","L+UP: NOP   L+RIGHT: QRS","L+DOWN: TUW L+LEFT: XYZ","R in a group is a letter"},
  {"SPECIAL LETTERS / BASIC EDIT","Keep DOWN held: R,R = g","Keep L+DOWN held: R,R = v","Release between R presses: jj/ww","A alone: space  B: backspace","START release alone: newline"},
- {"SHIFT / CAPS","R alone, release: Shift next","Next alphabetic letter uppercase","R,R quickly: CAPS on","CAPS on? One R turns CAPS off","Digits/signs do not use Shift"},
+ {"SHIFT / CAPS","R cycle: normal, Shift, CAPS","One isolated tap per step","No timing window","Shift: next alphabetic letter","Digits/signs do not use Shift"},
  {"START: NAVIGATE","Hold START + LEFT/RIGHT","Move one UTF-8 character","START+UP/DOWN: visual rows","START+L/R: previous/next page","Navigation never types letters"},
  {"START: SAVE","START+A: save this file","START+B: save, then main menu","Save failure keeps your text","Release START after command:","No accidental newline"},
  {"SELECT: ONE LIVE CHARACTER","Press SELECT: inserts . now","Hold SELECT to replace it","Release SELECT to commit one","UP: 1 2 3 4 5 6 7 8 9 0","DOWN: 0 9 8 7 6 5 4 3 2 1"},
@@ -43,7 +43,8 @@ const char* const help[writer::Application::HELP_PAGES][6]={
  {"SELECT: ADDITIONAL SIGNS","SELECT+RIGHT forward:",". ( ) / ; @ # % & _ + = - .","SELECT+LEFT: exact reverse","Every step replaces one glyph","No extra characters appended"},
  {"INTERNATIONAL LETTERS 1","A: á ä à â ã å æ","C: ç č ć  E: é è ë ê","I: í ï ì î","N: ñ ń","SELECT + normal letter chord"},
  {"INTERNATIONAL LETTERS 2","O: ó ö ô ò õ ø œ","S: ß š ś  U: ü ú ù û","Y: ý ÿ  Z: ž ź ż","L-layer chords work here too","Shift / CAPS applies to accents"},
- {"INTERNATIONAL CYCLING","Keep SELECT + group held","Repeat final B/A/R to cycle","E chord: é è ë ê, then é","Release SELECT to commit","ß stays ß, even with CAPS"}
+ {"INTERNATIONAL CYCLING","Keep SELECT + group held","Repeat final B/A/R to cycle","E chord: é è ë ê, then é","Release SELECT to commit","ß stays ß, even with CAPS"},
+ {"STATUS BAR / DATE","START+SELECT: bar / full screen","Cancels live SELECT character","Bottom: file, group, Shift/Caps","Date UP/DOWN: choose field","Date LEFT/RIGHT: change value"}
 };
 void render(bn::palette_bitmap_bg_painter& painter,bn::sprite_text_generator& ui,Sprites& sprites){
  sprites.clear();painter.fill(0);auto* px=reinterpret_cast<uint8_t*>(painter.page().data());char buffer[writer::FILE_NAME_SIZE + 2]; // Complete filename + dirty prefix + NUL; clip pixels, not UTF-8 bytes.
@@ -56,7 +57,7 @@ void render(bn::palette_bitmap_bg_painter& painter,bn::sprite_text_generator& ui
   writer::format(buffer,sizeof(buffer),"%c DAY     %02d",app.date_field()==0?'>':' ',d.day);line(px,38,34,buffer);
   writer::format(buffer,sizeof(buffer),"%c MONTH   %02d",app.date_field()==1?'>':' ',d.month);line(px,38,54,buffer);
   writer::format(buffer,sizeof(buffer),"%c YEAR    %04d",app.date_field()==2?'>':' ',d.year);line(px,38,74,buffer);
-  line(px,8,108,"LEFT/RIGHT: FIELD  UP/DOWN: +/-");line(px,28,136,"A: CREATE   B: BACK");break;}
+  line(px,8,108,"UP/DOWN: FIELD  LEFT/RIGHT: +/-");line(px,28,136,"A: CREATE   B: BACK");break;}
  case Scene::LOAD:{
   title(ui,sprites,"LOAD FILE");if(!storage.count())line(px,48,64,"NO TXT FILES");
   int first=(app.selected_file()/6)*6;
@@ -71,16 +72,19 @@ void render(bn::palette_bitmap_bg_painter& painter,bn::sprite_text_generator& ui
   else if(!std::strcmp(app.message(),"RECOVERY: CHECK SD ON PC")){line(px,8,66,"Preserved recovery copies.");line(px,8,86,"Back up SD before repair.");}
   line(px,70,132,"A: OK");break;
  case Scene::EDITOR:{
-  if(app.message()[0])line(px,8,0,app.message());else{
-   writer::format(buffer,sizeof(buffer),"%s%s",app.text().dirty()?"* ":"",storage.current_name());line(px,8,0,buffer,164);
-   if(app.caps())line(px,184,0,"CAPS",48);else if(app.shift())line(px,184,0,"SHIFT",48);
+  if(app.status_visible()){
+   if(app.message()[0])line(px,8,writer::STATUS_Y,app.message(),128);else{
+    writer::format(buffer,sizeof(buffer),"%s%s",app.text().dirty()?"* ":"",storage.current_name());line(px,8,writer::STATUS_Y,buffer,128);
+   }
+   line(px,144,writer::STATUS_Y,app.active_group(),32);
+   if(app.caps())line(px,184,writer::STATUS_Y,"CAPS",48);else if(app.shift())line(px,184,writer::STATUS_Y,"SHIFT",48);
   }
   auto& text=app.text();auto& layout=app.layout();const char* s=text.data();
-  int last=app.viewport()+writer::VIEW_ROWS;if(last>layout.rows())last=layout.rows();
-  for(int row=app.viewport();row<last;++row){int x=8,y=22+(row-app.viewport())*18;std::size_t end=row+1<layout.rows()?layout.row_start(row+1):text.bytes();
+  int last=app.viewport()+app.view_rows();if(last>layout.rows())last=layout.rows();
+  for(int row=app.viewport();row<last;++row){int x=8,y=writer::TEXT_Y+(row-app.viewport())*writer::TEXT_PITCH;std::size_t end=row+1<layout.rows()?layout.row_start(row+1):text.bytes();
    for(std::size_t p=layout.row_start(row);p<end;){char ch[5];p=writer::Layout::character(s,p,ch);if(ch[0]=='\n')break;int w=layout.width(ch);if(w&&ch[0]!='\t')line(px,x,y,ch,228-x);x+=w;}
   }
-  auto caret=layout.position(text,text.caret_byte());if(app.caret_visible()&&caret.row>=app.viewport()&&caret.row<last){int x=8+caret.x,y=22+(caret.row-app.viewport())*18;for(int j=0;j<16;++j)pixel(px,x,y+j);}
+  auto caret=layout.position(text,text.caret_byte());if(app.caret_visible()&&caret.row>=app.viewport()&&caret.row<last){int x=8+caret.x,y=writer::TEXT_Y+(caret.row-app.viewport())*writer::TEXT_PITCH;for(int j=0;j<16;++j)pixel(px,x,y+j);}
   break;}
  default: break;
  }
@@ -101,7 +105,7 @@ int main(){
   uint16_t snapshot=keys();
   // Show feedback BEFORE potentially slow hardware operations. Never probe SD at boot.
   bool checking=app.scene()==writer::Scene::MENU&&bn::keypad::a_pressed();
-  bool saving=(app.scene()==writer::Scene::DATE&&bn::keypad::a_pressed())||(app.scene()==writer::Scene::EDITOR&&bn::keypad::start_held()&&(bn::keypad::a_pressed()||bn::keypad::b_pressed()));
+  bool saving=app.save_feedback(snapshot);
   if(checking||saving){sprites.clear();painter.fill(0);line(reinterpret_cast<uint8_t*>(painter.page().data()),32,64,checking?"CHECKING SD...":"SAVING - DO NOT POWER OFF");painter.flip_page_later();bn::core::update();}
   app.frame(snapshot);if(app.take_redraw())render(painter,ui,sprites);bn::core::update();
  }

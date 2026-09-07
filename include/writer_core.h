@@ -68,7 +68,8 @@ enum class EventKind : uint8_t {
   PAGE_PREV,
   PAGE_NEXT,
   SAVE,
-  SAVE_MENU
+  SAVE_MENU,
+  TOGGLE_STATUS
 };
 struct InputEvent {
   EventKind kind;
@@ -77,7 +78,6 @@ struct InputEvent {
 class InputState {
 public:
   InputState();
-  static constexpr int DOUBLE_R_FRAMES=18;
   static constexpr int NAV_REPEAT_DELAY=24, NAV_REPEAT_INTERVAL=5;
   using Consumer=void(*)(void*,InputEvent);
   void update(uint16_t held,Consumer consume,void* context);
@@ -86,14 +86,16 @@ public:
   bool shift_armed() const { return _shift; }
   bool caps() const { return _caps; }
   bool select_active() const {return _select;}
+  const char* active_group() const;
+  bool toggle_latched() const { return _toggle_latched; }
   void reset_transient(){bool shift=_shift,caps=_caps;*this=InputState();_shift=shift;_caps=caps;}
   void reject_edit(){_group_r_count=0;_rejected=true;}
 
 private:
+  bool _toggle_latched=false;
   uint16_t _held;
   uint16_t _previous=0;
   bool _r_pending=false,_group_upper=false,_rejected=false;
-  int _r_window=0;
   uint16_t _repeat_keys=0;
   int _repeat_frames=0;
   bool _shift, _caps, _start_used, _select;

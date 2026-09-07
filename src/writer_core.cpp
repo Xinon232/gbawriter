@@ -274,6 +274,16 @@ const char *alternate_letter(char b, int i) {
 InputState::InputState()
     : _held(0), _shift(false), _caps(false), _start_used(false), _select(false),
       _group_r_count(0), _select_value{"."}, _alternate_base(0) {}
+const char* InputState::active_group() const {
+  unsigned directions=_held&15;
+  if(held(Button::START) || !directions || (directions&(directions-1)))return "";
+  char dir=held(Button::UP)?'U':held(Button::RIGHT)?'R':held(Button::DOWN)?'D':'L';
+  const char* lower=normal(dir,held(Button::L),0);
+  if(!(_shift||_caps))return lower;
+  static const char* upper[]={"ABC","DEF","HIJ","KLM","NOP","QRS","TUW","XYZ"};
+  int index=dir=='U'?0:dir=='R'?1:dir=='D'?2:3;
+  return upper[index+(held(Button::L)?4:0)];
+}
 bool InputState::held(Button b) const { return _held & (1u << unsigned(b)); }
 void InputState::set(Button b, bool on) {
   if (on)
@@ -320,7 +330,6 @@ InputEvent InputState::letter_event(char base, bool select) {
   char lower[2] = {base, 0};
   const char *x = case_text(lower, base);
   _shift = false;
-  _r_window=0;
   return {EventKind::INSERT, x};
 }
 InputEvent InputState::press(Button b, bool fresh) {
@@ -421,13 +430,12 @@ InputEvent InputState::press(Button b, bool fresh) {
       _shift = false;
       return {EventKind::NONE, ""};
     }
-    if (_shift && _r_window>0) {
+    if (_shift) {
       _shift = false;
       _caps = true;
       return {EventKind::NONE, ""};
     }
     _shift = true;
-    _r_window=DOUBLE_R_FRAMES;
     return {EventKind::NONE, ""};
   }
   if (!_select && b == Button::A)
@@ -459,7 +467,19 @@ InputEvent InputState::release(Button b) {
   return {EventKind::NONE, ""};
 }
 void InputState::update(uint16_t snapshot,Consumer consume,void* context) {
-  if(_r_window>0)--_r_window;
+  constexpr uint16_t chord=(1u<<unsigned(Button::START))|(1u<<unsigned(Button::SELECT));
+  // Own the entire chord session before releases, typing, repeats or saves.
+  if(_toggle_latched){
+    if(!(snapshot&chord)){
+      reset_transient();_held=snapshot;_previous=snapshot;
+    }
+    return;
+  }
+  if((snapshot&chord)==chord){
+    consume(context,{EventKind::TOGGLE_STATUS,""});
+    reset_transient();_toggle_latched=true;
+    return;
+  }
   uint16_t released=_previous&~snapshot,pressed=snapshot&~_previous;
   constexpr Button order[]={Button::START,Button::SELECT,Button::L,Button::UP,Button::DOWN,Button::LEFT,Button::RIGHT,Button::B,Button::A,Button::R};
   auto emit=[&](InputEvent e){if(e.kind!=EventKind::NONE)consume(context,e);};
@@ -467,7 +487,7 @@ void InputState::update(uint16_t snapshot,Consumer consume,void* context) {
     InputState before=*this;_rejected=false;
     emit(up?release(b):press(b,true));
     if(_rejected){
-      _shift=before._shift;_r_window=before._r_window;
+      _shift=before._shift;
       _select_alpha=before._select_alpha;
       _alternate_base=before._alternate_base;_alternate_index=before._alternate_index;
       std::strcpy(_select_value,before._select_value);

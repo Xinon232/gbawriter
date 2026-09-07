@@ -1,0 +1,20 @@
+#!/usr/bin/env python3
+from pathlib import Path
+root=Path(__file__).resolve().parents[1]
+main=(root/'src/main.cpp').read_text()
+app=(root/'include/writer_app.h').read_text()
+assert 'R cycle: normal, Shift, CAPS' in main
+assert 'No timing window' in main
+assert 'START+SELECT: bar / full screen' in main
+assert 'Bottom: file, group, Shift/Caps' in main
+assert 'Date UP/DOWN: choose field' in main
+assert 'Date LEFT/RIGHT: change value' in main
+assert 'HELP_PAGES = 13' in app
+assert 'quickly' not in main
+for path in ['README.md','RELEASE_NOTES.md']:
+    text=(root/path).read_text()
+    assert 'v0.2.0' in text and 'prerelease' in text
+    assert 'START+SELECT' in text and 'no timing window' in text
+    assert 'filename → active letter group → SHIFT/CAPS' in text
+assert 'name: GBAWriter-v0.2.0' in (root/'.github/workflows/build-rom.yml').read_text()
+print('PASS: v0.2.0 controls/help and hardware-unverified prerelease documentation')

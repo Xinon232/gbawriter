@@ -2,7 +2,10 @@
 #include "writer_core.h"
 namespace writer {
 constexpr int CARET_IDLE_FRAMES = 60, CARET_BLINK_FRAMES = 36;
-constexpr int VIEW_ROWS = 7;
+constexpr int TEXT_Y = 0, TEXT_HEIGHT = 16, TEXT_PITCH = 18;
+constexpr int STATUS_Y = 144, STATUS_GAP = 6;
+constexpr int VIEW_ROWS = (STATUS_Y-STATUS_GAP-TEXT_HEIGHT)/TEXT_PITCH+1;
+constexpr int FULL_VIEW_ROWS = (160-TEXT_HEIGHT)/TEXT_PITCH+1;
 struct VisualPosition {
   int row, x;
 };

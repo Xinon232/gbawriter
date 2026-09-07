@@ -21,7 +21,7 @@ g++ "${CXXFLAGS[@]}" \
     -o "$OUT/test_writer_core"
 "$OUT/test_writer_core"
 
-for suite in test_writer_app test_writer_layout test_writer_storage test_writer_frames test_writer_format test_text_model_differential; do
+for suite in test_writer_v020 test_writer_app test_writer_layout test_writer_storage test_writer_frames test_writer_format test_text_model_differential; do
     g++ "${CXXFLAGS[@]}" "$ROOT/tests/$suite.cpp" \
         "$ROOT/src/writer_core.cpp" "$ROOT/src/writer_layout.cpp" \
         "$ROOT/src/writer_storage.cpp" "$ROOT/src/writer_app.cpp" "$ROOT/src/writer_format.cpp" -o "$OUT/$suite"
@@ -108,3 +108,4 @@ python3 "$ROOT/tests/extract_help.py" "$OUT/help.txt"
 python3 "$ROOT/tests/test_source_contracts.py"
 python3 "$ROOT/tests/test_memory_gate.py"
 python3 "$ROOT/tests/test_writer_header.py"
+python3 "$ROOT/tests/test_writer_v020_docs.py"

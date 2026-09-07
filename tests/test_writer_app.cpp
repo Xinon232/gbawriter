@@ -25,8 +25,8 @@ int main() {
   tap(Button::A);
   assert(a.scene() == Scene::DATE);
   assert(a.date().day == 10 && a.date().month == 7 && a.date().year == 2026);
+  tap(Button::DOWN);
   tap(Button::RIGHT);
-  tap(Button::UP);
   assert(a.date().month == 8);
   tap(Button::A);
   assert(a.scene() == Scene::EDITOR);

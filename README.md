@@ -1,8 +1,8 @@
-# GBA Writer — v0.1.0
+# GBA Writer — v0.2.0
 
 A controller-native plain-text writer and diary for Game Boy Advance, based on [GBAReader v0.5.0](https://github.com/Xinon232/gbareader). It uses the inherited Butano menus, SuperFW bitmap text renderer, fonts, and Supercard SD/FatFS path. There is no QWERTY keyboard, network service, or AI component.
 
-> **Initial, hardware-unverified release.** Host tests and software filesystem fault injection pass; these are **not proof that saving is safe on a real GBA + Supercard SD**. Use disposable documents and a backed-up SD card until the hardware checklist below is completed. Do not entrust the only copy of a diary to this release. This version is a prerelease pending physical-hardware verification.
+> **Hardware-unverified prerelease.** Host tests and software filesystem fault injection pass; these are **not proof that saving is safe on a real GBA + Supercard SD**. Use disposable documents and a backed-up SD card until the hardware checklist below is completed. Do not entrust the only copy of a diary to this release. This version is a prerelease pending physical-hardware verification.
 
 ## Hardware and installation
 
@@ -16,7 +16,7 @@ A controller-native plain-text writer and diary for Game Boy Advance, based on [
 
 **New File is selected at startup.** Press A to choose a date, then A to create and edit. The preset is exactly one calendar day after the chronologically latest valid diary filename, including month/year/leap-year transitions. Filenames use **`DDMMYYYY.txt`**; raw alphabetical order is not used to choose the latest date.
 
-If no dated documents exist, the manual starting date is **10 July 2026**. This is an editable preset, not a real-time clock. In the date picker, Left/Right selects Day/Month/Year; Up/Down changes the field; A creates; B returns. Invalid day combinations are clamped. Supported years are 1–9999. At the upper calendar boundary there is no representable next day: the picker retains the latest date, and creation still refuses a collision.
+If no dated documents exist, the manual starting date is **10 July 2026**. This is an editable preset, not a real-time clock. In the date picker, Up/Down selects Day/Month/Year; Left decrements and Right increments the field; A creates; B returns. Invalid day combinations are clamped. Supported years are 1–9999. At the upper calendar boundary there is no representable next day: the picker retains the latest date, and creation still refuses a collision.
 
 **New File never overwrites an existing name**, including case-only `.TXT` differences. A collision shows `FILE ALREADY EXISTS` and returns to the unchanged proposed date after acknowledgment. It does not add suffixes or truncate the original.
 
@@ -43,11 +43,11 @@ Hold a direction, then press **B / A / R** to choose its **first / second / thir
 
 ### Shift and Caps
 
-With Caps off, an isolated **R press and release** arms **Shift for the next alphabetic character**. Digits, spaces and punctuation do not consume it. Two isolated R releases within the short double-press window enable **CAPS** and clear one-shot Shift.
+Isolated **R presses and releases** cycle **normal → Shift → Caps → normal**, repeating with **no timing window**. Shift applies to the next successfully inserted alphabetic character; digits, spaces and punctuation do not consume it. A second isolated tap enables Caps, regardless of the delay.
 
 **With Caps on, one isolated R press/release turns Caps off without arming Shift.** This is an approved deliberate difference from the original design's inverse-Shift behavior. R inside a direction group remains the third-letter key and cannot toggle Caps. Shift/Caps applies to the international letters below; `ß` stays `ß`, never two letters. Rejected capacity-limited edits do not consume Shift. A failed save preserves Shift/Caps as well as the document.
 
-`SHIFT` or `CAPS` appears in the editor status strip; `*` marks unsaved changes.
+The bottom status bar reads **filename → active letter group → SHIFT/CAPS**. The filename starts at x=8 (128-pixel slot), the group at x=144 (32-pixel slot), and Shift/Caps at x=184 (48-pixel slot): hold Up to see `abc`, or `ABC` with Shift/Caps; all normal and held-L groups follow the same rule. Release the direction to clear it; diagonals and START navigation show no letter group. `*` marks unsaved changes. Transient messages occupy only the filename slot, leaving capitalization and group visible.
 
 ### START commands
 
@@ -60,6 +60,7 @@ Hold START, then:
 | L / R | Previous / next viewport page, maintaining a valid caret |
 | A | Save the current file |
 | B | Save, then return to the main menu **only on success** |
+| SELECT | Toggle the bottom status bar / full-screen editor |
 
 Navigation repeats while held. Releasing START after a recognized command **does not add a newline**, even when saving fails. A save failure opens a clear error message and returns to the editor with text retained after acknowledgment. There is no discard shortcut or autosave.
 
@@ -76,7 +77,7 @@ Press SELECT to insert **`.` immediately**. Keep SELECT held to change **that sa
 | Right | `. → ( → ) → / → ; → @ → # → % → & → _ → + → = → - → .` |
 | Left | Exact reverse additional-symbol cycle |
 
-A completed letter chord takes priority over intermediate directional/punctuation changes. For example SELECT, then Right, then A changes the same provisional `.` to `(` and then to `é`, not three characters. A complete L-layer chord similarly overrides the temporary SELECT+L punctuation step. Unsupported accent families leave the provisional glyph unchanged. Do not combine START and SELECT as normal typing modes; a SELECT session already in progress owns its provisional character and suppresses START commands/newline.
+A completed letter chord takes priority over intermediate directional/punctuation changes. For example SELECT, then Right, then A changes the same provisional `.` to `(` and then to `é`, not three characters. A complete L-layer chord similarly overrides the temporary SELECT+L punctuation step. Unsupported accent families leave the provisional glyph unchanged. **START+SELECT toggles the status bar in the editor only**, in either press order. A SELECT-first provisional character is cancelled, restoring the original caret and dirty state; committed text is untouched. The chord never types, saves, or adds a newline. It toggles once per hold and suppresses commands until both START and SELECT are released; other held buttons do not prevent rearming.
 
 ### International letters
 
@@ -95,7 +96,7 @@ With SELECT held, use the normal letter chord, then **repeat its final B/A/R sel
 | Y | ý ÿ | Ý Ÿ |
 | Z | ž ź ż | Ž Ź Ż |
 
-N/S/U/Y/Z use the held L layer. Cycles wrap back to the first alternate. All 77 distinct required lowercase/uppercase glyphs are verified against the real font packs and renderer, including even/odd pixel addressing. Main-menu **SELECT** opens 12 control pages; Left/Right changes page; B returns. Help strings are checked for glyph coverage and screen width.
+N/S/U/Y/Z use the held L layer. Cycles wrap back to the first alternate. All 77 distinct required lowercase/uppercase glyphs are verified against the real font packs and renderer, including even/odd pixel addressing. Main-menu **SELECT** opens 13 control pages; Left/Right changes page; B returns. Help strings are checked for glyph coverage and screen width.
 
 ## Text, memory and limits
 
@@ -103,8 +104,9 @@ N/S/U/Y/Z use the held L layer. Cycles wrap back to the first alternate. All 77 
 - A fixed contiguous editable buffer is the source of truth, not the rendered page. Edits move bounded memory and reflow a fixed visual-row index; this implementation is **not a gap buffer**, despite some inherited internal member names. No unbounded document allocation is used.
 - Caret movement/backspace is codepoint-based, not grapheme-cluster-based. Combining marks can therefore be navigated separately. No normalization or encoding conversion occurs.
 - Soft wrapping is character-based and never saves additional line breaks. Explicit Enter inserts LF. Existing CRLF and BOM bytes are preserved; CR/BOM have zero display width, and tabs occupy a fixed 24 pixels rather than tab stops. Mixed line endings are possible after editing CRLF documents.
+- Editor text begins at y=0 with unchanged 16-pixel glyph height and 18-pixel line pitch. The bar occupies y=144–159; a six-pixel gutter is reserved above it. Complete rows only: **7 rows with the bar, 9 full-screen**. Page navigation uses the current row count. Bar visibility defaults on at boot and remains a session preference across saves, errors and documents; it does not alter stored files.
 - The vertical caret is a drawn graphic primitive, not a text character, with GBA-safe halfword writes. It stays visible on typing/navigation and blinks after about one second idle (36-frame phases).
-- Loaded filenames must fit 250 bytes to leave room for transient recovery suffixes. Longer names can be listed but are refused when opened. Long visible names are clipped by pixel width; the header buffer retains complete UTF-8 names, including the dirty marker.
+- Loaded filenames must fit 250 bytes to leave room for transient recovery suffixes. Longer names can be listed but are refused when opened. Long visible names are clipped by pixel width; the status buffer retains complete UTF-8 names, including the dirty marker.
 - Measured clean devkitARM build: **139,468 bytes EWRAM occupied, 122,676 bytes remaining**; IWRAM user-stack headroom **26,900 bytes**; largest checked runtime-source static stack frame **1,640 bytes**. App and storage objects are explicitly in EWRAM. The memory gate enforces at least 64 KiB EWRAM headroom, 20 KiB IWRAM stack headroom and a 2 KiB individual-frame ceiling. This is a budget check, **not a proof of total call-stack/IRQ depth**.
 - No EPUB editor, undo/redo, clipboard, search, autosave, RTC dependency, or general file manager.
 

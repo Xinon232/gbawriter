@@ -21,14 +21,18 @@ public:
   bool sd_ready() const { return _ready; }
   bool shift() const { return _input.shift_armed(); }
   bool caps() const { return _input.caps(); }
+  bool status_visible() const { return _status_visible; }
+  const char* active_group() const { return _input.active_group(); }
+  bool save_feedback(uint16_t held) const;
   int viewport() const { return _viewport; }
+  int view_rows() const { return _status_visible ? VIEW_ROWS : FULL_VIEW_ROWS; }
   bool caret_visible() const { return _clock.visible(); }
   bool take_redraw() {
     bool r = _redraw;
     _redraw = false;
     return r;
   }
-  static constexpr int HELP_PAGES = 12;
+  static constexpr int HELP_PAGES = 13;
 
 private:
   Storage &_storage;
@@ -43,7 +47,7 @@ private:
   Date _date{10, 7, 2026};
   uint16_t _previous = 0;
   bool _redraw = true, _ready = false, _wait_release = false,
-       _provisional = false;
+       _provisional = false, _provisional_dirty = false, _status_visible = true;
   std::size_t _provisional_end = 0;
   const char *_message = "";
   static void event(void *context, InputEvent e) {

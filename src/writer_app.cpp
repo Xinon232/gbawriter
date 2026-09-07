@@ -6,6 +6,7 @@ unsigned bit(Button b) { return 1u << unsigned(b); }
 void Application::boot() {
   // SD probing is deliberately lazy: boot/menu/help remain usable without a card.
   _ready = false;
+  _status_visible = true;
   _message = "";
   _redraw = true;
 }
@@ -33,8 +34,8 @@ void Application::ensure_visible() {
   int row = _layout.position(_text, _text.caret_byte()).row;
   if (row < _viewport)
     _viewport = row;
-  if (row >= _viewport + VIEW_ROWS)
-    _viewport = row - VIEW_ROWS + 1;
+  if (row >= _viewport + view_rows())
+    _viewport = row - view_rows() + 1;
 }
 void Application::adjust_date(int delta) {
   if (_field == 0) {
@@ -70,7 +71,16 @@ void Application::consume(InputEvent e) {
   using K = EventKind;
   bool edit = false, ok = true;
   switch (e.kind) {
+  case K::TOGGLE_STATUS:
+    if(_input.select_active() && _provisional && _text.caret_byte()==_provisional_end){
+      edit=_text.backspace();
+      if(!_provisional_dirty)_text.mark_saved();
+    }
+    _provisional=false;
+    _status_visible=!_status_visible;
+    break;
   case K::INSERT:
+    if(_input.select_active())_provisional_dirty=_text.dirty();
     ok = _text.insert(e.text);
     edit = ok;
     if (_input.select_active()) {
@@ -107,12 +117,12 @@ void Application::consume(InputEvent e) {
     _layout.move(_text, 1);
     break;
   case K::PAGE_PREV:
-    _layout.move(_text, -VIEW_ROWS);
-    _viewport = _viewport >= VIEW_ROWS ? _viewport - VIEW_ROWS : 0;
+    _layout.move(_text, -view_rows());
+    _viewport = _viewport >= view_rows() ? _viewport - view_rows() : 0;
     break;
   case K::PAGE_NEXT:
-    _layout.move(_text, VIEW_ROWS);
-    _viewport += VIEW_ROWS;
+    _layout.move(_text, view_rows());
+    _viewport += view_rows();
     if (_viewport >= _layout.rows())
       _viewport = _layout.rows() - 1;
     break;
@@ -150,6 +160,14 @@ void Application::consume(InputEvent e) {
   ensure_visible();
   _redraw = true;
 }
+bool Application::save_feedback(uint16_t held) const {
+  if(_wait_release)return false;
+  unsigned pressed=held&~_previous;
+  if(_scene==Scene::DATE)return pressed&bit(Button::A);
+  return _scene==Scene::EDITOR && !_input.toggle_latched() &&
+    !(held&bit(Button::SELECT)) &&
+    (held&bit(Button::START)) && (pressed&(bit(Button::A)|bit(Button::B)));
+}
 void Application::frame(uint16_t held) {
   uint16_t pressed = held & ~_previous;
   _previous = held;
@@ -173,7 +191,9 @@ void Application::frame(uint16_t held) {
     if (pressed)
       _redraw = true;
     bool shift = _input.shift_armed(), caps = _input.caps();
+    const char* group = _input.active_group();
     _input.update(held, event, this);
+    if(group != _input.active_group())_redraw=true;
     if(shift != _input.shift_armed() || caps != _input.caps())_redraw=true;
     return;
   }
@@ -205,13 +225,13 @@ void Application::frame(uint16_t held) {
     }
     break;
   case Scene::DATE:
-    if (p(Button::LEFT))
-      _field = (_field + 2) % 3;
-    if (p(Button::RIGHT))
-      _field = (_field + 1) % 3;
     if (p(Button::UP))
-      adjust_date(1);
+      _field = (_field + 2) % 3;
     if (p(Button::DOWN))
+      _field = (_field + 1) % 3;
+    if (p(Button::RIGHT))
+      adjust_date(1);
+    if (p(Button::LEFT))
       adjust_date(-1);
     if (p(Button::B))
       change(Scene::MENU);
