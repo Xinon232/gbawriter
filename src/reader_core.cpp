@@ -1,0 +1,328 @@
+#include "reader_core.h"
+
+#include <cstring>
+
+namespace reader {
+
+bool ByteSource::read_range(uint32_t offset, unsigned char* output, uint32_t count) const
+{
+    if(!output || offset > size() || count > size() - offset) return false;
+    for(uint32_t index = 0; index < count; ++index)
+        if(!byte_at(offset + index, output[index])) return false;
+    return true;
+}
+
+Settings default_settings() { return { 1, 1, 1 }; }
+
+void clamp_settings(Settings& s)
+{
+    if(s.line_spacing < MIN_LINE_SPACING) s.line_spacing = MIN_LINE_SPACING;
+    if(s.line_spacing > MAX_LINE_SPACING) s.line_spacing = MAX_LINE_SPACING;
+    if(s.top_margin < MIN_MARGIN) s.top_margin = MIN_MARGIN;
+    if(s.top_margin > MAX_MARGIN) s.top_margin = MAX_MARGIN;
+    if(s.bottom_margin < MIN_MARGIN) s.bottom_margin = MIN_MARGIN;
+    if(s.bottom_margin > MAX_MARGIN) s.bottom_margin = MAX_MARGIN;
+}
+
+void adjust_setting(Settings& s, SettingField field, int delta)
+{
+    uint8_t* value = field == SettingField::LINE_SPACING ? &s.line_spacing :
+                     field == SettingField::TOP_MARGIN ? &s.top_margin : &s.bottom_margin;
+    int maximum = MAX_LINE_SPACING;
+    int minimum = MIN_LINE_SPACING;
+    int result = int(*value) + delta;
+    if(result < minimum) result = minimum;
+    if(result > maximum) result = maximum;
+    *value = uint8_t(result);
+}
+
+bool MemorySource::byte_at(uint32_t offset, unsigned char& value) const
+{
+    if(offset >= _size) return false;
+    value = _data[offset];
+    return true;
+}
+
+struct Decoded {
+    uint32_t code;
+    uint8_t bytes[4];
+    int count;
+    int consumed;
+    bool source_ok;
+};
+
+static Decoded decode(const ByteSource& source, uint32_t offset, unsigned char first)
+{
+    Decoded d{ '?', {'?'}, 1, 1, true };
+    unsigned char a = first;
+    if(a < 0x80) return { a, {a}, 1, 1, true };
+    int count = (a >= 0xC2 && a <= 0xDF) ? 2 : (a >= 0xE0 && a <= 0xEF) ? 3 :
+                (a >= 0xF0 && a <= 0xF4) ? 4 : 0;
+    if(! count) return d;
+    d.bytes[0] = a;
+    for(int i = 1; i < count; ++i) {
+        unsigned char c = 0;
+        if(! source.byte_at(offset + uint32_t(i), c)) {
+            if(offset + uint32_t(i) < source.size()) d.source_ok = false;
+            return d;
+        }
+        if((c & 0xC0) != 0x80) return d;
+        d.bytes[i] = c;
+    }
+    uint32_t cp = count == 2 ? (a & 0x1F) : count == 3 ? (a & 0x0F) : (a & 0x07);
+    for(int i = 1; i < count; ++i) cp = (cp << 6) | (d.bytes[i] & 0x3F);
+    if((count == 3 && cp >= 0xD800 && cp <= 0xDFFF) ||
+       (count == 3 && cp < 0x800) || (count == 4 && (cp < 0x10000 || cp > 0x10FFFF))) return d;
+    if(cp == 0x2212 || (cp >= 0xFF01 && cp <= 0xFF5E)) {
+        const uint32_t ascii = cp == 0x2212 ? '-' : cp - 0xFEE0;
+        d.code = ascii;
+        d.bytes[0] = static_cast<uint8_t>(ascii);
+        d.count = 1;
+        d.consumed = count;
+        return d;
+    }
+    const bool arabic = (cp >= 0x0600 && cp <= 0x06FF) ||
+                        (cp >= 0x0750 && cp <= 0x077F) ||
+                        (cp >= 0x08A0 && cp <= 0x08FF) ||
+                        (cp >= 0xFB50 && cp <= 0xFDFF) ||
+                        (cp >= 0xFE70 && cp <= 0xFEFF);
+    if(arabic) {
+        d.code = '?';
+        d.bytes[0] = '?';
+        d.count = 1;
+        d.consumed = count;
+        return d;
+    }
+    d.code = cp;
+    d.count = count;
+    d.consumed = count;
+    return d;
+}
+
+static bool make_line(const ByteSource& source, uint32_t& cursor, GlyphWidth width_fn, PageLine& line,
+                      bool& source_ok)
+{
+    const int max_width = SCREEN_WIDTH - BODY_SIDE_MARGIN * 2;
+    uint32_t start = cursor;
+    uint32_t last_space_next = 0;
+    int last_space_out = -1;
+    int out = 0;
+    int width = 0;
+    line.paragraph_break = false;
+    line.text[0] = 0;
+
+    while(cursor < source.size()) {
+        unsigned char raw = 0;
+        if(! source.byte_at(cursor, raw)) { source_ok = false; return false; }
+        if(raw == '\r' || raw == '\n') {
+            int newlines = 0;
+            do {
+                const unsigned char newline = raw;
+                ++cursor;
+                if(newline == '\r' && cursor < source.size()) {
+                    unsigned char lf = 0;
+                    if(! source.byte_at(cursor, lf)) { source_ok = false; return false; }
+                    if(lf == '\n') ++cursor;
+                }
+                ++newlines;
+                if(cursor >= source.size()) break;
+                if(! source.byte_at(cursor, raw)) { source_ok = false; return false; }
+            } while(raw == '\r' || raw == '\n');
+            line.paragraph_break = newlines >= 2;
+            break;
+        }
+        if(raw == ' ') {
+            uint32_t run_end = cursor + 1;
+            unsigned char next = 0;
+            while(run_end < source.size()) {
+                if(! source.byte_at(run_end, next)) { source_ok = false; return false; }
+                if(next != ' ') break;
+                ++run_end;
+            }
+            if(run_end - cursor >= 3) {
+                cursor = run_end;
+                if(out == 0 || line.text[out - 1] == ' ') continue;
+                int space_width = width_fn ? width_fn(' ') : 8;
+                if(space_width < 1) space_width = 8;
+                if(width + space_width > max_width) break;
+                if(out + 1 >= PAGE_LINE_BYTES) break;
+                line.text[out++] = ' ';
+                width += space_width;
+                last_space_out = out - 1;
+                last_space_next = cursor;
+                continue;
+            }
+        }
+        Decoded d = decode(source, cursor, raw);
+        if(! d.source_ok) { source_ok = false; return false; }
+        int glyph_width = width_fn ? width_fn(d.code) : 8;
+        if(glyph_width < 1) glyph_width = 8;
+        if(width + glyph_width > max_width && out > 0) {
+            if(last_space_out >= 0) {
+                out = last_space_out;
+                cursor = last_space_next;
+                unsigned char c = 0;
+                while(cursor < source.size()) {
+                    if(! source.byte_at(cursor, c)) { source_ok = false; return false; }
+                    if(c != ' ') break;
+                    cursor++;
+                }
+            }
+            break;
+        }
+        if(out + d.count >= PAGE_LINE_BYTES) break;
+        for(int i = 0; i < d.count; ++i) line.text[out++] = char(d.bytes[i]);
+        cursor += uint32_t(d.consumed);
+        width += glyph_width;
+        if(d.code == ' ') {
+            last_space_out = out - 1;
+            last_space_next = cursor;
+        }
+    }
+    while(out > 0 && line.text[out - 1] == ' ') --out;
+    line.text[out] = 0;
+    return cursor > start;
+}
+
+bool layout_page(const ByteSource& source, uint32_t offset, const Settings& input,
+                 GlyphWidth glyph_width, Page& page)
+{
+    Settings settings = input;
+    clamp_settings(settings);
+    if(offset > source.size()) return false;
+    if(offset == 0 && source.size() >= 3) {
+        unsigned char a = 0, b = 0, c = 0;
+        if(! source.byte_at(0, a) || ! source.byte_at(1, b) || ! source.byte_at(2, c)) return false;
+        if(a == 0xEF && b == 0xBB && c == 0xBF) offset = 3;
+    }
+    Page result{};
+    result.start_offset = offset;
+    uint32_t cursor = offset;
+    const int bottom_limit = 160 - settings.bottom_margin;
+    int used_height = settings.top_margin;
+    bool source_ok = true;
+    while(cursor < source.size() && result.line_count < PAGE_MAX_LINES) {
+        const uint32_t line_start = cursor;
+        if(! make_line(source, cursor, glyph_width, result.lines[result.line_count], source_ok)) break;
+        int gap_before = 0;
+        if(result.line_count > 0) {
+            gap_before = settings.line_spacing;
+            if(result.lines[result.line_count - 1].paragraph_break)
+                gap_before += FONT_HEIGHT + settings.line_spacing;
+        }
+        if(used_height + gap_before + FONT_HEIGHT > bottom_limit) {
+            cursor = line_start;
+            break;
+        }
+        used_height += gap_before + FONT_HEIGHT;
+        ++result.line_count;
+    }
+    if(! source_ok) return false;
+    result.next_offset = cursor;
+    result.eof = cursor >= source.size();
+    if(result.line_count == 0 && ! result.eof) return false;
+    page = result;
+    return true;
+}
+
+bool open_first_page(const ByteSource& source, const Settings& settings, GlyphWidth glyph_width,
+                     PageHistory& history, Page& page)
+{
+    history = {};
+    return layout_page(source, 0, settings, glyph_width, page);
+}
+
+static void remember_page(PageHistory& history, uint32_t offset)
+{
+    if(history.count < PAGE_HISTORY_MAX) {
+        history.offsets[(history.head + history.count) % PAGE_HISTORY_MAX] = offset;
+        ++history.count;
+    } else {
+        history.offsets[history.head] = offset;
+        history.head = (history.head + 1) % PAGE_HISTORY_MAX;
+    }
+}
+
+bool open_page_at(const ByteSource& source, uint32_t offset, const Settings& settings,
+                  GlyphWidth glyph_width, PageHistory& history, Page& page)
+{
+    history = {};
+    if(offset >= source.size()) return false;
+    if(!layout_page(source, offset, settings, glyph_width, page)) return false;
+    history.lazy = offset > 0;
+    history.lazy_anchor = offset;
+    return true;
+}
+
+bool next_page(const ByteSource& source, const Settings& settings, GlyphWidth glyph_width,
+               PageHistory& history, const Page& current, Page& next)
+{
+    if(current.eof || current.next_offset <= current.start_offset) return false;
+    if(! layout_page(source, current.next_offset, settings, glyph_width, next)) return false;
+    remember_page(history, current.start_offset);
+    return true;
+}
+
+bool previous_page(const ByteSource& source, const Settings& settings, GlyphWidth glyph_width,
+                   PageHistory& history, Page& previous)
+{
+    if(history.count <= 0) return false;
+    const int index = (history.head + history.count - 1) % PAGE_HISTORY_MAX;
+    uint32_t offset = history.offsets[index];
+    if(! layout_page(source, offset, settings, glyph_width, previous)) return false;
+    --history.count;
+    return true;
+}
+
+void begin_history_rebuild(uint32_t anchor, PageHistoryRebuild& rebuild)
+{
+    rebuild = {};
+    rebuild.anchor = anchor;
+    rebuild.state = anchor ? HistoryRebuildState::BUILDING : HistoryRebuildState::READY;
+}
+
+HistoryRebuildState step_history_rebuild(const ByteSource& source, const Settings& settings,
+                                         GlyphWidth glyph_width, PageHistoryRebuild& rebuild)
+{
+    if(rebuild.state != HistoryRebuildState::BUILDING) return rebuild.state;
+
+    if(!rebuild.initialized) {
+        if(!layout_page(source, 0, settings, glyph_width, rebuild.scan)) {
+            rebuild.state = HistoryRebuildState::FAILED;
+            return rebuild.state;
+        }
+        rebuild.initialized = true;
+    } else {
+        if(rebuild.scan.eof || rebuild.scan.next_offset <= rebuild.scan.start_offset) {
+            rebuild.state = HistoryRebuildState::FAILED;
+            return rebuild.state;
+        }
+        if(rebuild.scan.next_offset >= rebuild.anchor) {
+            rebuild.state = HistoryRebuildState::READY;
+            return rebuild.state;
+        }
+        const uint32_t next_offset = rebuild.scan.next_offset;
+        if(!layout_page(source, next_offset, settings, glyph_width, rebuild.scan)) {
+            rebuild.state = HistoryRebuildState::FAILED;
+            return rebuild.state;
+        }
+    }
+
+    if(rebuild.scan.start_offset < rebuild.anchor)
+        remember_page(rebuild.rebuilt, rebuild.scan.start_offset);
+    if(rebuild.scan.eof || rebuild.scan.next_offset >= rebuild.anchor)
+        rebuild.state = HistoryRebuildState::READY;
+    return rebuild.state;
+}
+
+bool adopt_rebuilt_history(PageHistoryRebuild& rebuild, PageHistory& history)
+{
+    if(rebuild.state != HistoryRebuildState::READY) return false;
+    history = rebuild.rebuilt;
+    history.lazy = false;
+    history.lazy_anchor = 0;
+    rebuild.state = HistoryRebuildState::IDLE;
+    return true;
+}
+
+}

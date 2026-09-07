@@ -1,0 +1,2530 @@
+GOAL: BUILD "GBA WRITER" — A GBA-NATIVE PLAIN-TEXT WRITER / DIARY
+=======================================================================
+
+You are an autonomous coding agent. Implement a new Game Boy Advance homebrew application called "GBA Writer".
+
+The project should be based technically and visually on:
+
+https://github.com/Xinon232/gbareader
+
+Use the current GBAReader codebase as the architectural/font/UI foundation rather than starting over. Reuse/adapt its proven Supercard SD + FatFS path, Butano setup, menu style, font assets/rendering, and text rendering architecture where appropriate.
+
+The finished app is NOT an e-reader with editing bolted on. It is a focused plain-text writer/editor with:
+
+- a custom controller-native typing system
+- fast diary-file creation
+- safe saving
+- file loading
+- cursor navigation
+- international Latin-character support
+- no on-screen QWERTY keyboard
+
+Do not redesign the controls or UX described below unless a change is technically unavoidable.
+
+If something is ambiguous at implementation level, choose the simplest robust behavior that preserves the stated UX.
+
+The control system is deliberate and must be implemented as explicit input state machines rather than inferred afterward from produced text.
+
+
+=======================================================================
+1. BASE PROJECT / TECHNICAL FOUNDATION
+=======================================================================
+
+Base the project on the architecture and assets of:
+
+https://github.com/Xinon232/gbareader
+
+Relevant existing GBAReader architecture to reuse/adapt:
+
+- Butano-based GBA application.
+- devkitPro/devkitARM + GNU Make build.
+- Supercard SD / FatFS integration.
+- Existing menu UI foundation and menu font.
+- Existing SuperFW software glyph renderer.
+- Existing bitmap-page body-text rendering rather than one sprite per glyph.
+- Existing buffered file access patterns where useful.
+- Existing host-testable separation where practical.
+- Existing real-hardware-oriented Supercard SD behavior.
+
+The GBAReader README currently describes these major components:
+
+- reader_core: host-testable UTF-8 decoding/wrapping/pagination/history
+- reader_file: FatFS access / cached stream
+- reader_save: save-related logic
+- main: Butano UI, controls, presentation
+- superfw_font: SuperFW software glyph renderer targeting a double-buffered 8-bit bitmap background
+- menu UI remains sprite-based
+
+Do not blindly keep reader-specific abstractions if they make editing awkward.
+
+Refactor where needed, but retain the proven low-level:
+
+- storage
+- font
+- rendering
+- menu
+- build
+- Supercard SD
+
+foundation.
+
+GBA Writer only needs plain-text .txt editing for this project.
+
+EPUB functionality is NOT required.
+
+Target real Supercard SD hardware behavior.
+
+Emulator success alone is not sufficient evidence for file I/O correctness.
+
+
+=======================================================================
+2. FILE LOCATION
+=======================================================================
+
+GBA Writer uses:
+
+/gbawriter/
+
+on the SD card.
+
+All files created by this app go into that directory.
+
+The Load File menu lists .txt files from:
+
+/gbawriter/
+
+Do NOT use the GBAReader root-file behavior for this app.
+
+If /gbawriter/ does not exist, create it safely if the filesystem/API permits that.
+
+If directory creation fails, show a clear non-destructive error message.
+
+
+=======================================================================
+3. MAIN MENU
+=======================================================================
+
+Use menu elements / visual language based on GBAReader.
+
+Main menu:
+
+GBA WRITER
+
+> NEW FILE
+  LOAD FILE
+
+SELECT: CONTROLS
+
+Rules:
+
+- NEW FILE is selected by default every time the app starts.
+- Up/Down moves selection.
+- A activates selection.
+- SELECT opens the typing-control instructions.
+- Keep startup/menu interaction fast.
+- Experienced diary use should allow repeated A presses from boot to reach a new entry quickly.
+
+Primary desired flow when dated files already exist:
+
+boot
+-> NEW FILE already selected
+-> press A
+-> date preset is already latest diary date + 1 day
+-> press A
+-> file is created and editor opens
+
+In other words:
+
+A, A
+
+from the main menu should normally create the next diary file and begin writing.
+
+
+=======================================================================
+4. NEW FILE / DIARY DATE LOGIC
+=======================================================================
+
+Diary filenames use exactly:
+
+DDMMYYYY.txt
+
+Example:
+
+21102026.txt
+
+A valid diary filename must:
+
+- contain exactly 8 decimal digits before ".txt"
+- use DDMMYYYY interpretation
+- represent a real valid Gregorian calendar date
+- be treated case-insensitively for the .txt extension if necessary
+- newly created files should use lowercase ".txt"
+
+
+A) SCAN FOR EXISTING DATED FILES
+--------------------------------
+
+Scan /gbawriter/ for all filenames matching a valid DDMMYYYY.txt diary filename.
+
+Parse them as actual dates.
+
+Find the CHRONOLOGICALLY LATEST valid date.
+
+Do NOT determine the latest file through raw filename/string sorting.
+
+Example:
+
+12121990.txt
+21102001.txt
+
+Latest date:
+
+21 October 2001
+
+Therefore the proposed next file is:
+
+22102001.txt
+
+
+B) IF AT LEAST ONE VALID DATED FILE EXISTS
+-------------------------------------------
+
+Preset the New File date picker to:
+
+latest valid diary date + 1 calendar day
+
+Examples:
+
+21102026 -> 22102026
+31102026 -> 01112026
+31122026 -> 01012027
+28022028 -> 29022028
+28022027 -> 01032027
+
+Use correct Gregorian leap-year/calendar arithmetic.
+
+
+C) IF NO VALID DATED FILE EXISTS
+--------------------------------
+
+Open the date picker and require the user to choose the initial date manually.
+
+Do NOT use the custom typewriter controls in the date picker.
+
+The date picker uses conventional menu controls.
+
+Suggested presentation:
+
+NEW FILE
+
+DAY    21
+MONTH  10
+YEAR   2026
+
+A: CREATE
+B: BACK
+
+Behavior:
+
+- Left/Right switches selected field: DAY / MONTH / YEAR
+- Up/Down increments/decrements selected field
+- A attempts to create the proposed DDMMYYYY.txt file
+- B cancels and returns to main menu
+
+Implement date validity cleanly.
+
+The user must not be able to create impossible dates such as:
+
+31 February
+
+Either clamp fields appropriately or reject invalid dates with a clear message.
+
+
+D) NEVER OVERWRITE FROM NEW FILE
+--------------------------------
+
+NEW FILE must NEVER overwrite an existing file.
+
+Before creating any file, check whether that exact destination filename already exists.
+
+If it exists:
+
+- do not overwrite it
+- do not truncate it
+- do not delete it
+- do not silently rename it
+- do not create suffixes such as "_2"
+
+Show a warning such as:
+
+FILE ALREADY EXISTS
+
+21102001.txt
+
+CHOOSE ANOTHER DATE
+
+A: OK
+
+After acknowledgement, return to the date picker with the user's proposed date still present.
+
+The user can then change it.
+
+This protection applies even if the automatic preset should theoretically have produced a free filename.
+
+Always perform the final existence check.
+
+The automatic preset is always based on:
+
+latest existing valid dated file + exactly one calendar day
+
+
+=======================================================================
+5. LOAD FILE
+=======================================================================
+
+Selecting LOAD FILE opens a list of .txt files in:
+
+/gbawriter/
+
+Behavior:
+
+- Up/Down selects file.
+- A opens selected file in editor.
+- B returns to main menu.
+
+Valid dated diary files should be sorted chronologically:
+
+newest first
+
+Because DDMMYYYY does not sort correctly as raw text, parse valid diary filenames into actual dates.
+
+Non-dated .txt files may also be shown.
+
+Order:
+
+1. valid dated diary files, newest to oldest
+2. non-dated .txt files alphabetically
+
+Do not provide:
+
+- delete
+- rename
+- overwrite-from-menu
+- duplicate
+- file-management actions
+
+The menu is intentionally safe and minimal.
+
+Deletion is not needed because flashcart/file-management tools already provide external file management.
+
+
+=======================================================================
+6. SAVE SEMANTICS
+=======================================================================
+
+There is an important distinction:
+
+
+NEW FILE
+--------
+
+- may create only a genuinely new filename
+- must never overwrite an existing file
+
+
+OPENED EXISTING FILE
+--------------------
+
+- may be edited
+- Save from inside the editor saves changes back to the same currently opened file
+- this normal editing save is allowed to replace/update the contents of that file
+
+
+Therefore:
+
+"overwrite" is forbidden as a menu/file-creation action.
+
+Saving edits back to the file currently being edited is normal and required.
+
+Saving must be robust and should minimize corruption risk as far as practical on the target filesystem/hardware.
+
+Do not add a delete option.
+
+
+=======================================================================
+7. TEXT EDITOR
+=======================================================================
+
+The editor is a plain-text editor using the SuperFW-based font/rendering foundation from GBAReader.
+
+Use the GBAReader body-text / bitmap rendering approach as the basis for efficient GBA text rendering.
+
+The editor must support:
+
+- insertion at cursor
+- deletion before cursor
+- newline insertion
+- cursor movement
+- multi-line text
+- multiple visual pages/screens
+- loading existing UTF-8 .txt files within the supported renderer scope
+- saving edited UTF-8 text back to SD
+- lowercase letters
+- uppercase letters
+- international accented Latin letters defined later
+- digits
+- punctuation
+- symbols
+- visible insertion caret
+- dirty-state tracking
+
+Prioritize:
+
+- responsiveness
+- deterministic behavior
+- safe bounded memory use
+- real hardware reliability
+
+Do NOT implement an on-screen QWERTY keyboard.
+
+
+=======================================================================
+8. CORE LETTER INPUT SYSTEM
+=======================================================================
+
+This is the core typing system.
+
+GENERAL GROUP RULE:
+
+Within every letter group:
+
+B = first letter
+A = second letter
+R = third letter
+
+
+NORMAL LETTER LAYER
+-------------------
+
+             UP
+            A B C
+
+
+LEFT                     RIGHT
+K L M                     D E F
+
+
+            DOWN
+            H I J
+
+
+Exact lowercase mappings:
+
+UP + B    = a
+UP + A    = b
+UP + R    = c
+
+RIGHT + B = d
+RIGHT + A = e
+RIGHT + R = f
+
+DOWN + B  = h
+DOWN + A  = i
+DOWN + R  = j
+
+LEFT + B  = k
+LEFT + A  = l
+LEFT + R  = m
+
+
+IMPORTANT:
+
+A/B/R should only act as standalone Space/Backspace/Shift controls when no active letter group or higher-priority modifier state applies.
+
+
+=======================================================================
+9. SECOND LETTER LAYER: HOLD L
+=======================================================================
+
+L is a held layer modifier.
+
+Do NOT turn it into a toggle.
+
+
+              L + UP
+               N O P
+
+
+L + LEFT                  L + RIGHT
+  X Y Z                      Q R S
+
+
+              L + DOWN
+               T U W
+
+
+Exact lowercase mappings:
+
+L + UP + B    = n
+L + UP + A    = o
+L + UP + R    = p
+
+L + RIGHT + B = q
+L + RIGHT + A = r
+L + RIGHT + R = s
+
+L + DOWN + B  = t
+L + DOWN + A  = u
+L + DOWN + R  = w
+
+L + LEFT + B  = x
+L + LEFT + A  = y
+L + LEFT + R  = z
+
+
+=======================================================================
+10. SPECIAL SAME-SESSION LETTER TRANSFORMATIONS
+=======================================================================
+
+Two letters are not mapped directly:
+
+g
+v
+
+They are generated through repeated third-letter input while the SAME relevant direction group remains continuously held.
+
+These are INPUT-SESSION transformations.
+
+They are NOT global text substitutions.
+
+
+G FROM JJ
+---------
+
+DOWN + R normally produces:
+
+j
+
+If the user holds DOWN continuously and presses R twice before releasing DOWN:
+
+hold DOWN
+-> press R
+-> press R
+-> release DOWN
+
+result:
+
+g
+
+Conceptually:
+
+jj -> g
+
+but only inside one continuous DOWN-group input session.
+
+Therefore:
+
+hold DOWN
+R
+R
+release
+
+= g
+
+but:
+
+DOWN + R
+release DOWN
+DOWN + R
+release DOWN
+
+= jj
+
+Literal "jj" must remain typable.
+
+User speed is irrelevant.
+
+There is NO timing threshold.
+
+The defining condition is:
+
+DOWN was never released between the first and second R press.
+
+
+V FROM WW
+---------
+
+L + DOWN + R normally produces:
+
+w
+
+If the user continuously holds the relevant group and presses R twice:
+
+hold L + DOWN
+-> press R
+-> press R
+-> release group
+
+result:
+
+v
+
+Conceptually:
+
+ww -> v
+
+Again this is session-based.
+
+If the group is released between inputs:
+
+L + DOWN + R
+release
+L + DOWN + R
+release
+
+= ww
+
+Literal "ww" must remain typable.
+
+Model these group sessions explicitly.
+
+
+=======================================================================
+11. BASIC SINGLE-BUTTON EDITING CONTROLS
+=======================================================================
+
+When no letter group, SELECT session, START command state, or other higher-priority modifier state applies:
+
+A alone
+= SPACE
+
+B alone
+= BACKSPACE
+
+Backspace:
+
+- removes the logical character immediately before the insertion caret
+- safely does nothing at the beginning of the file
+- removes one UTF-8 codepoint/logical displayed character, never one arbitrary byte
+
+
+START alone
+= ENTER / NEW LINE
+
+START's exact deferred behavior is defined in the START section below.
+
+
+R alone
+= CAPITALIZATION CONTROL
+
+R's exact Shift/Caps behavior is defined below.
+
+
+=======================================================================
+12. CAPITALIZATION — R ALONE
+=======================================================================
+
+R is both:
+
+1. the third-letter key when a direction letter group is active
+2. the capitalization key when pressed by itself
+
+These roles must be disambiguated explicitly.
+
+
+R INSIDE A LETTER GROUP
+-----------------------
+
+Examples:
+
+UP + R
+= c
+
+RIGHT + R
+= f
+
+L + RIGHT + R
+= s
+
+In these cases R is the third-letter selector.
+
+It must NOT trigger Shift or Caps Lock.
+
+
+R ALONE: SINGLE PRESS
+---------------------
+
+A short isolated R press arms:
+
+SHIFT NEXT ALPHABETIC CHARACTER
+
+If normal mode is lowercase:
+
+R once
+-> next alphabetic character uppercase
+-> then automatically return to lowercase
+
+Example:
+
+R
+RIGHT + A
+
+result:
+
+E
+
+instead of:
+
+e
+
+
+SHIFT WHILE CAPS LOCK IS ACTIVE
+-------------------------------
+
+If Caps Lock is active:
+
+R once
+-> next alphabetic character lowercase
+-> after that character, return automatically to Caps Lock uppercase behavior
+
+
+PUNCTUATION / NUMBERS
+---------------------
+
+One-character Shift applies to the next alphabetic character.
+
+Numbers and punctuation do NOT consume the one-character Shift state.
+
+
+R ALONE: DOUBLE PRESS
+---------------------
+
+Two isolated R presses in succession toggle Caps Lock.
+
+Caps off:
+
+R
+R
+
+-> CAPS ON
+
+Caps on:
+
+R
+R
+
+-> CAPS OFF
+
+
+DISAMBIGUATION
+--------------
+
+R capitalization recognition applies only when:
+
+- no D-pad letter group is active
+- SELECT is not held
+- START is not held
+- R is not functioning as the final selector of an L-layer letter chord
+
+Repeated R inside a continuously held DOWN group must continue to support:
+
+JJ -> G
+
+Repeated R inside a continuously held L+DOWN group must continue to support:
+
+WW -> V
+
+Those cases are NOT Caps Lock double presses.
+
+
+RESPONSIVE DOUBLE-PRESS MODEL
+-----------------------------
+
+Do not make R feel laggy.
+
+Recommended behavior:
+
+- first short isolated R release immediately arms one-character Shift
+- if a second qualifying isolated R press occurs within a short configurable double-press window before an alphabetic character is typed, reinterpret the pair as a Caps Lock toggle
+- clear the one-shot Shift state when the double press becomes a Caps Lock toggle
+
+If Caps Lock was already active:
+
+- first isolated R may temporarily arm inverse one-character Shift
+- a qualifying second isolated R within the double-press window converts the pair into Caps Lock OFF
+- clear the temporary one-character Shift state
+
+Keep the double-press timing constant centralized/configurable.
+
+
+VISUAL STATE
+------------
+
+Show a small unobtrusive indicator:
+
+↑
+
+when one-letter Shift is armed.
+
+Show:
+
+CAPS
+
+when Caps Lock is active.
+
+Do not obscure document text.
+
+
+=======================================================================
+13. START — ENTER + EDITOR COMMAND MODIFIER
+=======================================================================
+
+START has deferred behavior.
+
+This is deliberately different from SELECT.
+
+SELECT creates a provisional text character immediately.
+
+START does NOT perform its default Enter action until START is released and the system knows no START command was used.
+
+
+START ALONE
+-----------
+
+START down:
+
+do nothing yet
+
+START released without any START command having been used:
+
+insert Enter / newline
+
+
+Conceptual state model:
+
+START down
+-> enter pending START-command state
+-> command_used = false
+
+START released
+if command_used == false:
+    insert newline
+else:
+    do nothing
+
+
+START + COMMAND
+---------------
+
+While START remains held:
+
+START + LEFT
+= move insertion caret one logical position left
+
+START + RIGHT
+= move insertion caret one logical position right
+
+START + UP
+= move caret to closest horizontal position in visual row above
+
+START + DOWN
+= move caret to closest horizontal position in visual row below
+
+START + L
+= previous page / viewport page
+
+START + R
+= next page / viewport page
+
+START + A
+= save current text to current file
+
+START + B
+= save current text and return to main menu
+
+
+Any successful recognition of one of these START combinations sets:
+
+command_used = true
+
+Therefore releasing START afterward must NOT also insert a newline.
+
+
+Example:
+
+hold START
+press A
+-> SAVE
+
+release START
+-> nothing
+
+NOT:
+
+SAVE
++ accidental newline
+
+
+START COMMAND PRECEDENCE
+------------------------
+
+While START is held:
+
+- do not trigger normal letter typing
+- do not trigger R Shift/Caps
+- do not trigger A Space
+- do not trigger B Backspace
+- do not trigger L second-letter layer
+- do not trigger normal D-pad typing groups
+
+START command mode has higher priority.
+
+
+CURSOR MOVEMENT
+---------------
+
+START + LEFT/RIGHT moves through logical displayed characters/codepoints.
+
+START + UP/DOWN moves through VISUAL rows, including soft-wrapped rows.
+
+Up/down movement should preserve the intended horizontal column as naturally as practical.
+
+Allow reasonable held-key repetition for navigation.
+
+Do not let navigation create characters.
+
+
+SAVE + MENU
+-----------
+
+START + B means:
+
+save current text
+then return to main menu
+
+Only leave the editor after the save succeeds.
+
+If save fails:
+
+- display the failure clearly
+- remain in editor
+- preserve text
+- do not falsely report success
+
+
+=======================================================================
+14. SELECT — PROVISIONAL SPECIAL-CHARACTER SYSTEM
+=======================================================================
+
+SELECT is a live/provisional special-character modifier.
+
+This is a central part of the keyboard.
+
+It is NOT simply a normal held modifier.
+
+PRESS SELECT:
+
+SELECT down
+-> immediately insert "."
+-> record the position of that just-inserted character
+-> mark that exact character as PROVISIONAL
+
+
+Example:
+
+SELECT down
+
+text becomes:
+
+.
+
+
+PROVISIONAL CHARACTER RULE
+--------------------------
+
+As long as SELECT remains held:
+
+- the same provisional character remains editable
+- SELECT combinations REPLACE that character
+- they must NOT append new characters
+- the provisional position remains fixed as one logical inserted character
+- the character may change repeatedly during the same hold
+
+Example:
+
+SELECT down
+-> .
+
+while still holding SELECT
+-> ?
+
+change selection
+-> !
+
+change selection
+-> 7
+
+There is still exactly ONE newly inserted character.
+
+
+SELECT RELEASE
+--------------
+
+SELECT released:
+
+- current provisional character becomes committed
+- clear the SELECT-session state
+- caret remains after the committed character
+
+
+The conceptual model is:
+
+SELECT down
+-> insert "."
+-> provisional_position = inserted character
+
+while SELECT held:
+    replace provisional character as controls change/cycle
+
+SELECT released:
+-> commit current character
+-> provisional_position = none
+
+
+SELECT is therefore:
+
+"open one special-character selection session"
+
+Releasing SELECT commits exactly one character.
+
+
+=======================================================================
+15. SELECT DIRECTIONAL ORGANIZATION
+=======================================================================
+
+The SELECT layout is:
+
+              UP
+          NUMBERS FORWARD
+
+
+LEFT                         RIGHT
+SIGNS REVERSE                SIGNS FORWARD
+
+
+             DOWN
+         NUMBERS REVERSE
+
+
+Additionally:
+
+SELECT + R
+= common punctuation forward
+
+SELECT + L
+= common punctuation reverse
+
+SELECT + valid letter chord
+= international alternate-letter family
+
+
+=======================================================================
+16. SELECT + UP / DOWN — NUMBER CYCLE
+=======================================================================
+
+While SELECT is held:
+
+
+SELECT + UP
+-----------
+
+Cycles numbers forward:
+
+. -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 0 -> 1 -> 2 -> ...
+
+
+SELECT + DOWN
+-------------
+
+Cycles numbers backward:
+
+. -> 0 -> 9 -> 8 -> 7 -> 6 -> 5 -> 4 -> 3 -> 2 -> 1 -> 0 -> 9 -> ...
+
+
+UP therefore means:
+
+count upward
+
+DOWN means:
+
+count downward
+
+
+Each qualifying press changes/replaces the SAME provisional character.
+
+Do not append digits during the cycle.
+
+
+=======================================================================
+17. SELECT + R / L — COMMON PUNCTUATION
+=======================================================================
+
+When SELECT is held and NO D-pad letter chord is active:
+
+
+SELECT + R
+----------
+
+Cycle forward:
+
+. -> , -> ' -> " -> : -> ! -> ? -> .
+
+
+SELECT + L
+----------
+
+Cycle exact reverse:
+
+. -> ? -> ! -> : -> " -> ' -> , -> .
+
+
+Common punctuation set:
+
+.
+,
+'
+"
+:
+!
+?
+
+
+IMPORTANT:
+
+If a D-pad direction is active and R completes a valid letter chord, the SELECT + letter-chord behavior described later takes precedence over punctuation cycling.
+
+Example:
+
+SELECT + UP + R
+
+is the C alternate-letter chord.
+
+It is NOT punctuation.
+
+
+=======================================================================
+18. SELECT + RIGHT / LEFT — ADDITIONAL SYMBOLS
+=======================================================================
+
+While SELECT is held:
+
+
+SELECT + RIGHT
+--------------
+
+Cycle forward:
+
+. -> ( -> ) -> / -> ; -> @ -> # -> % -> & -> _ -> + -> = -> - -> .
+
+
+SELECT + LEFT
+-------------
+
+Cycle exact reverse:
+
+. -> - -> = -> + -> _ -> & -> % -> # -> @ -> ; -> / -> ) -> ( -> .
+
+
+Additional symbols excluding the shared period:
+
+(
+)
+/
+;
+@
+#
+%
+&
+_
++
+=
+-
+
+
+As with numbers/punctuation:
+
+each cycle step REPLACES the same provisional character.
+
+It must not append characters.
+
+
+=======================================================================
+19. SELECT + LETTER CHORD — INTERNATIONAL ALTERNATE LETTERS
+=======================================================================
+
+SELECT also acts as an international alternate-character modifier.
+
+While SELECT remains held, entering a normal valid letter chord selects an alternate version of that BASE LETTER.
+
+This uses the exact same direction/B/A/R letter geometry as normal typing.
+
+
+Example:
+
+normal E:
+
+RIGHT + A
+= e
+
+while SELECT is held:
+
+SELECT + RIGHT + A
+= first alternate of E
+= é
+
+
+REPEATING THE FINAL LETTER BUTTON
+---------------------------------
+
+Once an alternate-letter family has been selected, repeated presses of the final B/A/R selector while the same relevant letter group remains held cycle through that base letter's alternate characters.
+
+Example E:
+
+hold SELECT
+hold RIGHT
+press A
+-> é
+
+press A again while SELECT + RIGHT remain held
+-> è
+
+press A again
+-> ë
+
+press A again
+-> ê
+
+press A again
+-> é
+
+
+This is one SELECT session.
+
+Only one provisional character exists.
+
+Each cycle step replaces that character.
+
+
+INTERNATIONAL CHARACTER ORDER
+-----------------------------
+
+Use this exact frequency-oriented order:
+
+
+A:
+
+á -> ä -> à -> â -> ã -> å -> æ
+
+
+C:
+
+ç -> č -> ć
+
+
+E:
+
+é -> è -> ë -> ê
+
+
+I:
+
+í -> ï -> ì -> î
+
+
+N:
+
+ñ -> ń
+
+
+O:
+
+ó -> ö -> ô -> ò -> õ -> ø -> œ
+
+
+S:
+
+ß -> š -> ś
+
+
+U:
+
+ü -> ú -> ù -> û
+
+
+Y:
+
+ý -> ÿ
+
+
+Z:
+
+ž -> ź -> ż
+
+
+Only these base-letter families require alternate cycles in the first version.
+
+For other base letters:
+
+- a SELECT + letter chord should not insert an unintended normal letter
+- leave the provisional character unchanged or use another simple no-op behavior
+- do not invent additional accents not listed here
+
+
+L-LAYER LETTERS
+---------------
+
+Alternate characters must also work for letters located on the L layer.
+
+Examples:
+
+N = L + UP + B
+S = L + RIGHT + R
+U = L + DOWN + A
+Y = L + LEFT + A
+Z = L + LEFT + R
+
+Therefore:
+
+SELECT + L + UP + B
+-> ñ
+
+SELECT + L + RIGHT + R
+-> ß
+
+etc.
+
+
+SELECT + L INTERMEDIATE STATE
+-----------------------------
+
+SELECT + L by itself normally cycles common punctuation backward.
+
+However, L is also the second-letter-layer modifier.
+
+Therefore a complete valid SELECT + L + direction + B/A/R letter chord has higher priority than SELECT+L punctuation.
+
+It is acceptable if the provisional character changes temporarily while the user is assembling the chord.
+
+The completed letter chord must replace it with the intended alternate letter.
+
+No extra characters may be created.
+
+
+=======================================================================
+20. SELECT INPUT PRECEDENCE / DISAMBIGUATION
+=======================================================================
+
+This section is important.
+
+SELECT directional controls overlap physically with the direction groups used by letters.
+
+Example:
+
+RIGHT by itself under SELECT means:
+
+additional-symbol cycle forward
+
+but:
+
+RIGHT + A
+
+is the normal E letter chord.
+
+Therefore while SELECT is held:
+
+SELECT + RIGHT
+may temporarily change the provisional character to a symbol
+
+then:
+
+A pressed while RIGHT remains held
+
+must recognize the completed:
+
+RIGHT + A
+
+letter chord and replace the provisional character with:
+
+é
+
+
+GENERAL PRECEDENCE
+------------------
+
+Within a SELECT session:
+
+1. START commands are not active because START and SELECT should not be treated as simultaneous normal modes.
+2. A completed valid letter chord has highest SELECT-input priority.
+3. If L + direction + B/A/R forms a valid second-layer letter chord, treat it as that letter.
+4. Direction-only input uses number/symbol cycling.
+5. R/L without an active valid letter direction group uses common punctuation cycling.
+6. All changes affect the same provisional character.
+
+
+NO DUPLICATE OUTPUT
+-------------------
+
+Do not implement SELECT by inserting a new character for every control event.
+
+There must be one provisional character position.
+
+Example:
+
+SELECT down
+-> "."
+
+RIGHT
+-> "("
+
+A while RIGHT held
+-> "é"
+
+A again
+-> "è"
+
+LEFT etc.
+-> another provisional symbol
+
+SELECT released
+-> whichever single character is currently selected becomes final
+
+
+=======================================================================
+21. CAPITALIZATION OF INTERNATIONAL LETTERS
+=======================================================================
+
+Shift and Caps Lock must apply to international alphabetic characters too.
+
+Examples:
+
+Shift armed + SELECT + E family
+-> É as the first E alternate
+
+Caps Lock active + SELECT + A family
+-> Á as the first A alternate
+
+
+Required uppercase counterparts where applicable include:
+
+Á
+Ä
+À
+Â
+Ã
+Å
+Æ
+
+Ç
+Č
+Ć
+
+É
+È
+Ë
+Ê
+
+Í
+Ï
+Ì
+Î
+
+Ñ
+Ń
+
+Ó
+Ö
+Ô
+Ò
+Õ
+Ø
+Œ
+
+Š
+Ś
+
+Ü
+Ú
+Ù
+Û
+
+Ý
+Ÿ
+
+Ž
+Ź
+Ż
+
+
+ß
+---
+
+Do NOT require uppercase ẞ for this version.
+
+If the selected alternate is ß:
+
+- keep it as ß even if Shift/Caps is active
+- do not substitute "SS"
+- do not create two characters
+
+
+=======================================================================
+22. INTERNATIONAL FONT / GLYPH REQUIREMENTS
+=======================================================================
+
+The international character set above is a real product requirement.
+
+Inspect the inherited SuperFW font and renderer.
+
+Determine which required glyphs already exist.
+
+Required supported lowercase glyphs:
+
+á ä à â ã å æ
+ç č ć
+é è ë ê
+í ï ì î
+ñ ń
+ó ö ô ò õ ø œ
+ß š ś
+ü ú ù û
+ý ÿ
+ž ź ż
+
+and the uppercase equivalents specified above.
+
+If the inherited body font lacks required glyphs:
+
+- extend/adapt the font assets appropriately
+- keep visual style consistent with the inherited font
+- preserve existing licensing/provenance requirements
+- ensure the renderer maps the required Unicode codepoints correctly
+
+Do not expose a selectable character that renders as a missing-glyph box.
+
+Verify actual rendering on hardware/emulator.
+
+UTF-8 encoding of these characters must be preserved correctly when saving.
+
+
+=======================================================================
+23. INSERTION CARET
+=======================================================================
+
+Use a VERTICAL INSERTION CARET positioned BETWEEN characters.
+
+Do NOT rely on the font containing a "|" glyph.
+
+Render the caret as a graphic primitive / vertical line independent of document text.
+
+The caret:
+
+- consumes no character in text
+- consumes no text width
+- can appear before the first character
+- can appear between characters
+- can appear after the final character
+- can appear on an empty line
+
+
+Conceptual examples:
+
+|HELLO
+
+HEL|LO
+
+HELLO|
+
+Empty line:
+
+|
+
+
+CARET BLINKING
+--------------
+
+While the user is actively typing or navigating:
+
+- caret stays solidly visible
+
+After approximately 1 second without typing/navigation:
+
+- begin slow blinking
+
+Suggested blink timing:
+
+500-700 ms visible
+500-700 ms hidden
+
+Any new input:
+
+- immediately make caret visible
+- reset idle timer
+- resume blinking after the next idle interval
+
+Keep timing constants centralized/configurable.
+
+
+=======================================================================
+24. EDITOR TEXT MODEL
+=======================================================================
+
+Implement a real editable text model.
+
+Do NOT treat rendered pages as the source of truth.
+
+Maintain at least:
+
+- actual text content
+- insertion caret position
+- UTF-8/codepoint mapping
+- line/wrap mapping
+- viewport/page state
+- dirty state
+- Shift state
+- Caps Lock state
+- current direction-group session
+- JJ/G transformation state
+- WW/V transformation state
+- R isolated/double-press state
+- START pending/consumed command state
+- SELECT provisional-character position
+- SELECT current family/cycle state
+
+
+UTF-8 REQUIREMENTS
+------------------
+
+Preserve valid UTF-8 text supported by the renderer.
+
+Never split a multibyte UTF-8 sequence during:
+
+- movement
+- deletion
+- insertion
+- wrapping
+- saving
+- provisional SELECT replacement
+
+Cursor movement must operate on logical displayed characters/codepoints, not arbitrary bytes.
+
+Backspace removes one logical character/codepoint before the caret.
+
+Be robust against malformed input using a safe deterministic policy consistent with the base project.
+
+
+=======================================================================
+25. WRAPPING, PAGES, AND CURSOR MOVEMENT
+=======================================================================
+
+Reuse/adapt GBAReader's wrapping and bitmap rendering where useful.
+
+However, editing requires reverse mapping between:
+
+- text position
+- logical character
+- visual row
+- visual X position
+- page/viewport
+
+The user must be able to move the caret naturally through wrapped text.
+
+Requirements:
+
+- soft wrapping does NOT insert newline characters into the file
+- START alone inserts an actual newline
+- START+Up/Down traverses visual rows
+- explicit newline and soft wrapping remain distinct
+- saving preserves actual text rather than rendered wrapping
+- page movement changes viewport while maintaining a valid caret/insertion location
+- inserting/deleting near wrap boundaries reflows correctly
+- accented UTF-8 characters remain single logical characters for navigation purposes
+
+Prefer deterministic bounded structures suitable for GBA memory.
+
+
+=======================================================================
+26. CONTROL INSTRUCTIONS FROM MAIN MENU
+=======================================================================
+
+From the MAIN MENU:
+
+SELECT
+= open TYPEWRITER CONTROLS / instruction pages
+
+Use GBAReader-style menu presentation.
+
+Do not cram everything onto one screen.
+
+Suggested pages:
+
+
+PAGE 1: NORMAL LETTERS
+----------------------
+
+- D-pad = letter group
+- B = first letter
+- A = second letter
+- R = third letter
+- show normal mappings
+
+
+PAGE 2: SECOND LETTER LAYER
+---------------------------
+
+- Hold L = second alphabet layer
+- show NOP / QRS / TUW / XYZ mappings
+
+
+PAGE 3: SPECIAL LETTERS + BASIC EDIT
+------------------------------------
+
+- same-session JJ = G
+- same-session WW = V
+- A alone = Space
+- B alone = Backspace
+- START alone = Enter
+
+
+PAGE 4: SHIFT / CAPS
+--------------------
+
+- R alone once = Shift next alphabetic character
+- R alone twice = Caps Lock toggle
+- R inside direction group remains third-letter key
+- Shift under Caps = one lowercase character
+
+
+PAGE 5: START COMMANDS
+----------------------
+
+- START + Left/Right = caret left/right
+- START + Up/Down = visual row up/down
+- START + L/R = previous/next page
+- START + A = save
+- START + B = save + menu
+- releasing START after a command does NOT insert Enter
+
+
+PAGE 6: SELECT BASICS
+---------------------
+
+- SELECT immediately inserts "."
+- character remains provisional while SELECT is held
+- releasing SELECT commits one character
+- SELECT + Up/Down = numbers
+
+
+PAGE 7: PUNCTUATION / SYMBOLS
+-----------------------------
+
+- SELECT + R/L = common punctuation
+- SELECT + Right/Left = additional signs
+- show the complete forward cycles
+
+
+PAGE 8: INTERNATIONAL LETTERS
+-----------------------------
+
+Explain:
+
+SELECT + normal letter chord
+= alternate version of that letter
+
+Show compact cycles such as:
+
+A: á ä à â ã å æ
+C: ç č ć
+E: é è ë ê
+I: í ï ì î
+N: ñ ń
+O: ó ö ô ò õ ø œ
+S: ß š ś
+U: ü ú ù û
+Y: ý ÿ
+Z: ž ź ż
+
+
+PAGE 9: INTERNATIONAL CYCLING
+-----------------------------
+
+Explain:
+
+- keep SELECT held
+- enter the letter chord
+- repeat the final B/A/R selector while the same group remains held
+- same provisional character cycles through alternatives
+- release SELECT to commit
+
+
+INSTRUCTION NAVIGATION
+----------------------
+
+Use one consistent navigation mapping.
+
+For example:
+
+Left/Right
+= previous/next instruction page
+
+B
+= return to main menu
+
+Display navigation instructions on screen.
+
+Instruction navigation is separate from editor typing, so it does not need to obey typing semantics.
+
+
+=======================================================================
+27. FILE SAFETY / DATA INTEGRITY
+=======================================================================
+
+This is a writer.
+
+Saving integrity matters more than in the read-only GBAReader use case.
+
+Required principles:
+
+- Never truncate/overwrite an existing filename during New File creation.
+- Do not advertise a save as complete until filesystem operations succeed.
+- Handle write errors visibly.
+- Avoid corrupting an existing file if save fails partway, as far as reasonably practical.
+- Flush/sync/close correctly using the actual available filesystem API.
+- Do not leave stale file handles across menu transitions.
+- Loading another file must not silently discard unsaved text.
+
+If the architecture permits a safer temporary-file + replace strategy on this exact hardware/filesystem, evaluate it carefully.
+
+Do NOT introduce a supposedly atomic strategy unless the actual target FatFS/Supercard behavior supports it reliably.
+
+If unsaved edits exist and the user attempts an action that could discard them outside the explicit START+B save-and-return path:
+
+- protect the text
+- use a simple confirmation or require save/cancel
+
+Keep this minimal.
+
+
+=======================================================================
+28. MENU SAFETY PRINCIPLE
+=======================================================================
+
+The app intentionally has NO:
+
+- Delete File
+- Rename File
+- Overwrite Existing File menu action
+- Duplicate File
+- file-manager functionality
+
+The only ways file contents change are:
+
+1. creating a genuinely new file through NEW FILE
+2. opening a file and explicitly saving editor changes back to that currently open file
+
+Do not expand this into a general file manager.
+
+
+=======================================================================
+29. VISUAL / UX DIRECTION
+=======================================================================
+
+Reuse GBAReader's:
+
+- menu elements
+- menu font
+- overall visual language
+- body rendering foundation
+
+The experience should feel:
+
+- minimal
+- fast
+- readable on real GBA hardware
+- controller-native
+- distraction-free
+
+Avoid decorative complexity.
+
+Priority UX:
+
+1. Boot quickly.
+2. NEW FILE selected by default.
+3. A opens date preset.
+4. A creates file.
+5. User immediately types.
+
+The diary workflow should effectively be:
+
+turn on GBA
+-> A
+-> A
+-> write
+
+
+=======================================================================
+30. PERFORMANCE / MEMORY
+=======================================================================
+
+Respect Game Boy Advance hardware limits.
+
+Do not solve editing by allocating unbounded whole-file structures.
+
+Determine and document a reasonable maximum editable file size / buffer strategy based on:
+
+- GBA EWRAM
+- IWRAM
+- renderer usage
+- Butano usage
+- filesystem buffers
+- existing project memory footprint
+
+GBAReader can stream large read-only files.
+
+An editor has different requirements.
+
+Choose an intentional editable-text architecture.
+
+Possible approaches include:
+
+- bounded whole-file buffer if a safe useful size fits
+- gap buffer
+- piece table
+- chunked editable structure
+- bounded editable window + rewrite strategy
+- another deterministic low-memory approach
+
+Choose based on:
+
+- simplicity
+- reliability
+- predictable memory
+- insertion/backspace responsiveness
+- UTF-8 support
+- save simplicity
+
+Avoid dynamic-allocation-heavy architecture without a strong reason.
+
+Typing, backspace, cycling SELECT characters, and moving the caret should feel immediate.
+
+
+=======================================================================
+31. INPUT STATE-MACHINE PRIORITY
+=======================================================================
+
+Implement explicit state machines.
+
+Do not build input behavior from ad-hoc if-statements that can accidentally overlap.
+
+A useful conceptual priority is:
+
+
+1. MENU / MODAL UI STATE
+------------------------
+
+If in menu/date picker/help/error confirmation:
+
+use that screen's controls.
+
+
+2. START COMMAND STATE
+----------------------
+
+If START is held:
+
+START command semantics have priority.
+
+Do not type normal characters.
+
+
+3. SELECT PROVISIONAL STATE
+---------------------------
+
+If SELECT is held:
+
+all text input modifies the one provisional SELECT character according to the SELECT rules.
+
+Completed valid letter chords take precedence over directional/punctuation intermediate states.
+
+
+4. ACTIVE LETTER GROUP
+----------------------
+
+If D-pad direction is active:
+
+A/B/R select letters.
+
+L may change to second letter layer.
+
+R does NOT act as Shift/Caps while part of a letter chord.
+
+
+5. ISOLATED R
+-------------
+
+If R occurs without a letter group, START, or SELECT:
+
+process Shift/Caps logic.
+
+
+6. STANDALONE A/B
+-----------------
+
+A = Space
+B = Backspace
+
+
+SESSION-BASED LOGIC
+-------------------
+
+Keep explicit state for:
+
+- current direction held
+- whether L layer is active
+- repeated-R count within same DOWN group for G
+- repeated-R count within same L+DOWN group for V
+- isolated R double-press timing
+- pending START state
+- whether START command was consumed
+- SELECT provisional position
+- SELECT current cycle family
+- SELECT current alternate-letter base
+- SELECT alternate-letter cycle index
+
+Reset session-specific transformations when their defining hold/session ends.
+
+
+=======================================================================
+32. TESTS
+=======================================================================
+
+Preserve/add host-testable logic wherever possible.
+
+At minimum add tests for:
+
+
+DATE / FILE LOGIC
+-----------------
+
+- parse valid DDMMYYYY filename
+- reject malformed filenames
+- reject invalid dates
+- chronological latest-date selection
+- month boundary
+- year boundary
+- leap year
+- non-leap year
+- unrelated filenames ignored
+- no overwrite when filename exists
+
+
+NORMAL LETTER INPUT
+-------------------
+
+- every normal group mapping
+- every L-layer mapping
+- A alone = Space
+- B alone = Backspace
+
+
+SPECIAL G/V INPUT
+-----------------
+
+- same-session JJ -> G
+- released-session J + J -> JJ
+- same-session WW -> V
+- released-session W + W -> WW
+- no accidental transformation after direction release
+- no timing dependency for G/V
+- R double press inside DOWN group does NOT toggle Caps
+- R double press inside L+DOWN group does NOT toggle Caps
+
+
+SHIFT / CAPS
+------------
+
+- isolated R once arms Shift
+- next alphabetic character is uppercase
+- Shift clears after one alphabetic character
+- punctuation does not consume Shift
+- number does not consume Shift
+- isolated R double press toggles Caps on
+- isolated R double press toggles Caps off
+- Caps makes normal letters uppercase
+- isolated R once while Caps active inverts next alphabetic character to lowercase
+- then Caps resumes
+- R inside normal group remains third-letter selector
+- R inside L-layer group remains third-letter selector
+
+
+START
+-----
+
+- START release alone inserts newline
+- START+A saves
+- START+B saves + menu only after successful save
+- START+Left/Right moves caret
+- START+Up/Down moves visual row
+- START+L/R changes page
+- releasing START after any command does NOT insert newline
+- START command mode does not accidentally type letters
+- failed START+B save remains in editor
+
+
+SELECT BASIC
+------------
+
+- SELECT down immediately inserts "."
+- SELECT release commits "."
+- only one provisional character is created per SELECT session
+- all SELECT changes replace same provisional character
+- release commits current result
+
+
+SELECT NUMBERS
+--------------
+
+- UP cycle forward:
+  . 1 2 3 4 5 6 7 8 9 0
+
+- DOWN cycle reverse:
+  . 0 9 8 7 6 5 4 3 2 1
+
+- cycles wrap correctly
+- no appended digits
+
+
+SELECT COMMON PUNCTUATION
+-------------------------
+
+Forward:
+
+. , ' " : ! ?
+
+Reverse exact opposite.
+
+Test full wraparound.
+
+
+SELECT ADDITIONAL SYMBOLS
+-------------------------
+
+Forward:
+
+. ( ) / ; @ # % & _ + = -
+
+Reverse exact opposite.
+
+Test full wraparound.
+
+
+SELECT LETTER PRECEDENCE
+------------------------
+
+Example:
+
+SELECT held
+RIGHT changes symbol provisionally
+A while RIGHT held
+
+must become:
+
+é
+
+not:
+
+symbol + é
+
+and not:
+
+symbol followed by normal e
+
+
+INTERNATIONAL LETTER CYCLES
+---------------------------
+
+Test exact order:
+
+
+A:
+á ä à â ã å æ
+
+C:
+ç č ć
+
+E:
+é è ë ê
+
+I:
+í ï ì î
+
+N:
+ñ ń
+
+O:
+ó ö ô ò õ ø œ
+
+S:
+ß š ś
+
+U:
+ü ú ù û
+
+Y:
+ý ÿ
+
+Z:
+ž ź ż
+
+
+Test:
+
+- first alternate
+- each subsequent alternate
+- wrap back to first
+- repeated final selector cycles within same group
+- releasing SELECT commits current alternate
+- only one character is inserted
+- unsupported base-letter chord does not create unintended output
+
+
+INTERNATIONAL CAPITALIZATION
+----------------------------
+
+- Shift + é family produces uppercase equivalents
+- Caps + accented family produces uppercase equivalents
+- inverse Shift while Caps works
+- ß remains ß
+- ß does not become "SS"
+
+
+UTF-8 / TEXT MODEL
+------------------
+
+- insertion beginning/middle/end
+- backspace at beginning safely does nothing
+- backspace over multibyte international characters
+- caret movement over multibyte international characters
+- newline insertion
+- wrapping does not alter file content
+- navigation around wrapped rows
+- saving preserves UTF-8
+- save/reload round-trip including:
+  é
+  ä
+  ç
+  ñ
+  ø
+  œ
+  ß
+  ž
+
+
+FILE SAFETY
+-----------
+
+- New File refuses existing filename
+- existing file remains byte-for-byte untouched after refused New File
+- Save updates current open file
+- failed save does not report success
+- Save + Menu leaves editor only after successful save
+- multiple sequential saves
+- reopen saved international UTF-8 file correctly
+
+
+=======================================================================
+33. REAL-HARDWARE VERIFICATION
+=======================================================================
+
+Because GBAReader's storage path is Supercard SD specific, document a real-hardware test checklist.
+
+At minimum verify on real GBA + target Supercard SD:
+
+- /gbawriter/ discovery/creation
+- creating a new .txt file
+- file appears correctly on SD when inspected on computer
+- filename uses DDMMYYYY.txt
+- loading file again
+- editing existing file
+- saving existing file
+- no truncation/corruption
+- multiple sequential saves
+- date preset based on files actually on SD
+- files survive reboot
+- directory scan and sorting
+- long-enough writing sessions
+- caret rendering
+- caret blinking
+- normal typing speed
+- L-layer typing
+- same-session JJ/G
+- same-session WW/V
+- isolated R Shift
+- isolated R Caps double press
+- no Caps activation from letter-group R presses
+- START release = Enter
+- START+A save
+- START+B save/menu
+- no accidental Enter after START commands
+- SELECT provisional period
+- SELECT number cycling
+- SELECT punctuation cycling
+- SELECT symbol cycling
+- SELECT international letters
+- international uppercase rendering
+- UTF-8 files display correctly after opening on Windows/Linux/macOS
+- no missing-glyph boxes for required characters
+- save error handling if safely reproducible
+
+
+=======================================================================
+34. README / USER DOCUMENTATION
+=======================================================================
+
+The finished README should describe:
+
+- what GBA Writer is
+- relation/foundation from GBAReader where appropriate
+- hardware requirements
+- Supercard SD expectations
+- /gbawriter/ directory behavior
+- DDMMYYYY.txt diary filename convention
+- New File no-overwrite behavior
+- Load File behavior
+- save semantics
+- complete controller layout
+- Shift/Caps behavior
+- START command behavior
+- SELECT provisional-character concept
+- number cycles
+- punctuation cycles
+- symbol cycles
+- international letter cycles
+- supported international character set
+- UTF-8 behavior
+- build instructions
+- maximum editable file size / memory strategy
+- known limits
+- real-hardware notes
+- licenses / attribution
+
+
+=======================================================================
+35. BUILD / DELIVERABLES
+=======================================================================
+
+The finished repository should include:
+
+- source code
+- Makefile/build configuration
+- inherited/reused assets
+- required license/provenance notices
+- README
+- host tests
+- generated .gba ROM from normal build if environment supports building it
+
+Use an appropriate ROM/output name such as:
+
+gbawriter.gba
+
+Do not remove required upstream licenses or provenance notices from:
+
+- GBAReader
+- SuperFW
+- Butano
+- FatFS-related code
+- font assets
+- other inherited components
+
+
+=======================================================================
+36. IMPLEMENTATION PROCESS
+=======================================================================
+
+Work autonomously.
+
+Before major changes:
+
+1. inspect the current GBAReader repository thoroughly
+2. understand its filesystem path
+3. understand its Supercard SD behavior
+4. understand rendering architecture
+5. understand font/glyph format
+6. inspect available Unicode glyph coverage
+7. understand menu assets
+8. understand memory model
+9. understand build system
+10. identify reusable code versus reader-only code
+11. design the editable text model
+12. design the input state machines
+13. form an implementation plan
+14. implement incrementally
+
+Compile frequently.
+
+Run host tests frequently.
+
+Do not leave major required behavior as pseudocode/TODO.
+
+When assumptions are unavoidable:
+
+document them.
+
+Prefer small testable state machines for:
+
+- direction-group letter input
+- L-layer input
+- JJ/G transformation
+- WW/V transformation
+- isolated R Shift/Caps
+- START pending/command state
+- SELECT provisional state
+- SELECT directional cycling
+- SELECT international-letter cycling
+- editor
+- date/new-file flow
+
+Do not regress proven Supercard/FatFS behavior merely to simplify desktop or emulator testing.
+
+
+=======================================================================
+37. ACCEPTANCE CRITERIA
+=======================================================================
+
+The project is successful when ALL of the following are true:
+
+- GBA Writer boots to a GBAReader-style menu.
+- NEW FILE is selected by default.
+- Existing DDMMYYYY.txt files are parsed as dates.
+- NEW FILE defaults to one day after the chronologically latest diary file.
+- If no diary files exist, the user can choose a date manually.
+- A filename that already exists can never be overwritten through New File.
+- LOAD FILE lists /gbawriter/ .txt files.
+- Existing files can be opened, edited, and explicitly saved.
+- There is no delete/rename/duplicate/overwrite menu functionality.
+- Normal custom letter mappings work.
+- L second layer works as a held modifier.
+- Same-session JJ produces G.
+- Separate-session JJ remains JJ.
+- Same-session WW produces V.
+- Separate-session WW remains WW.
+- A alone inserts Space.
+- B alone performs Backspace.
+- START release alone inserts newline.
+- START+A saves.
+- START+B saves and returns to menu.
+- START+D-pad navigates caret.
+- START+L/R changes viewport page.
+- START command use never creates an accidental newline on release.
+- R alone once arms one-letter Shift.
+- R alone twice toggles Caps Lock.
+- R within a letter group remains the third-letter selector.
+- Shift/Caps never interfere with G/V same-session logic.
+- SELECT immediately inserts ".".
+- SELECT maintains exactly one provisional character for the entire hold.
+- SELECT+Up/Down cycles numbers.
+- SELECT+R/L cycles common punctuation.
+- SELECT+Right/Left cycles additional symbols.
+- SELECT+letter chord selects international alternate characters.
+- Repeated final selector cycles alternate variants.
+- International cycles follow the exact specified order.
+- French ç is directly supported.
+- German ä ö ü ß are supported.
+- Spanish á é í ó ú ñ are supported.
+- Portuguese/French/Scandinavian/Central-European listed characters are supported.
+- Shift/Caps works with supported international letters.
+- Required UTF-8 characters render without missing-glyph boxes.
+- UTF-8 is preserved when saving.
+- A vertical insertion caret appears between characters.
+- Caret is solid during active input/navigation.
+- Caret blinks slowly after approximately 1 second idle.
+- Main-menu SELECT opens complete control instructions.
+- Saving is robust enough for real diary use on target Supercard SD hardware.
+- Host tests pass.
+- Normal GBA build succeeds.
+- README fully documents controls and limitations.
+
+
+=======================================================================
+38. DO NOT "IMPROVE" AWAY THESE DELIBERATE DESIGN CHOICES
+=======================================================================
+
+Do NOT:
+
+- replace the custom keyboard with QWERTY
+- add an on-screen keyboard
+- introduce diagonal D-pad controls
+- turn L into a toggle
+- replace same-session JJ/WW logic with global text replacement
+- make R inside letter groups trigger Shift/Caps
+- move capitalization back to START
+- make START alone trigger Shift/Caps
+- make START commands also insert newline on release
+- delay SELECT's initial "." until release
+- append new characters while cycling SELECT
+- replace SELECT with a conventional symbol menu
+- reduce SELECT to only punctuation
+- remove the international alternate-letter system
+- use German-first-only or French-first-only character coverage
+- reorder the specified international cycles without a compelling technical reason
+- add delete/rename/file-manager features
+- automatically append suffixes to filename conflicts
+- overwrite existing files from NEW FILE
+- change diary filename format away from DDMMYYYY.txt
+- rely on RTC/clock for diary dates
+- use a font character as the insertion caret if a drawn caret is practical
+- split UTF-8 sequences
+- save soft-wrap artifacts as actual line breaks
+- add backend/network/AI functionality
+
+
+=======================================================================
+39. FINAL DESIGN PRINCIPLE
+=======================================================================
+
+The goal is a tiny, robust, deliberately constrained GBA writing tool whose controls can become muscle memory.
+
+The controller should have a coherent mental model:
+
+A
+= Space / second letter selector
+
+B
+= Backspace / first letter selector
+
+R
+= third letter selector inside a group
+= Shift/Caps when isolated
+
+L
+= held second alphabet layer
+
+START
+= Enter when released alone
+= editor command modifier when combined with another control
+
+SELECT
+= one provisional special-character session
+= numbers
+= punctuation
+= symbols
+= international alternate letters
+
+
+The intended diary workflow is almost immediate:
+
+turn on GBA
+-> A
+-> A
+-> write
+
+The app should feel like a real controller-native portable writing tool, not a novelty text-entry demo.
