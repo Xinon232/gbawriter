@@ -2,7 +2,7 @@
 #include "writer_layout.h"
 #include "writer_storage.h"
 namespace writer {
-enum class Scene { MENU, DATE, LOAD, EDITOR, HELP, ERROR };
+enum class Scene { MENU, DATE, LOAD, EDITOR, HELP, ERROR, CREDITS };
 class Application {
 public:
   Application(Storage &storage, Layout::Width measure)

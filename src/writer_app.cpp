@@ -207,6 +207,8 @@ void Application::frame(uint16_t held) {
     if (p(Button::SELECT)) {
       _help = 0;
       change(Scene::HELP);
+    } else if (p(Button::START)) {
+      change(Scene::CREDITS);
     } else if (p(Button::A)) {
       auto r = _ready ? _storage.scan() : _storage.init();
       _ready = r == StoreResult::OK;
@@ -299,6 +301,10 @@ void Application::frame(uint16_t held) {
       _help = (_help + HELP_PAGES - 1) % HELP_PAGES;
     if (p(Button::RIGHT))
       _help = (_help + 1) % HELP_PAGES;
+    if (p(Button::B))
+      change(Scene::MENU);
+    break;
+  case Scene::CREDITS:
     if (p(Button::B))
       change(Scene::MENU);
     break;

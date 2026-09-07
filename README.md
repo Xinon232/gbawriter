@@ -1,4 +1,4 @@
-# GBA Writer — v0.2.1
+# GBA Writer — v0.3.0
 
 A controller-native plain-text writer and diary for Game Boy Advance, based on [GBAReader v0.5.0](https://github.com/Xinon232/gbareader). It uses the inherited Butano menus, SuperFW bitmap text renderer, fonts, and Supercard SD/FatFS path. There is no QWERTY keyboard, network service, or AI component.
 
@@ -23,6 +23,10 @@ If no dated documents exist, the manual starting date is **10 July 2026**. This 
 **Load File** lists `.txt` files in `/gbawriter/`: valid diary dates newest first, then other names alphabetically (ASCII case-insensitive). Up/Down selects; A opens; B returns. The display shows six entries at a time; the storage index rescans in bounded 32-entry batches, so the directory is not limited to 32 files. Longer directories take longer to rescan. There are no delete, rename, duplicate, or overwrite-from-menu actions.
 
 ## Controller layout
+
+Main-menu **SELECT** opens controls and **START** opens credits; **B** returns from either. The adjacent bottom hints read exactly `Select: Controls` and `Start: Credits`. Credits show `Made by Halim Jarrar`, `(C) 2026`, `halim-jarrar.de`, and `monday@halim-jarrar.de`.
+
+Menu interface text and navigation hints use the existing blue UI font. Numeric date values, text filenames, saving indications, controls content and credits content retain the writing font. Editor typography and status positions are unchanged.
 
 Hold a direction, then press **B / A / R** to choose its **first / second / third** letter. Lowercase is the default.
 
@@ -103,7 +107,7 @@ N/S/U/Y/Z use the held L layer. Cycles wrap back to the first alternate. All 77 
 - Maximum document content: **24 KiB (24,576 UTF-8 bytes)**, not characters. Oversize files, malformed UTF-8, and embedded NUL are rejected without changing the current buffer. Required precomposed Latin letters render; other valid Unicode bytes are preserved but glyph coverage is not guaranteed.
 - A fixed contiguous editable buffer is the source of truth, not the rendered page. Edits move bounded memory and reflow a fixed visual-row index; this implementation is **not a gap buffer**, despite some inherited internal member names. No unbounded document allocation is used.
 - Caret movement/backspace is codepoint-based, not grapheme-cluster-based. Combining marks can therefore be navigated separately. No normalization or encoding conversion occurs.
-- Soft wrapping is character-based and never saves additional line breaks. Explicit Enter inserts LF. Existing CRLF and BOM bytes are preserved; CR/BOM have zero display width, and tabs occupy a fixed 24 pixels rather than tab stops. Mixed line endings are possible after editing CRLF documents.
+- Soft wrapping is display-only **whole-word** wrapping: words that fit the viewport move intact to the next row; only oversized words split across rows. Whitespace remains in the visual row index (including trailing spaces), never trimmed or rewritten. Reflow looks ahead once per word and never saves additional line breaks. Explicit Enter inserts LF. Existing CRLF and BOM bytes are preserved; CR/BOM have zero display width, and tabs occupy a fixed 24 pixels rather than tab stops. Mixed line endings are possible after editing CRLF documents.
 - Editor text begins at y=0 with unchanged 16-pixel glyph height and 18-pixel line pitch. The bar occupies y=144–159; a six-pixel gutter is reserved above it. Complete rows only: **7 rows with the bar, 9 full-screen**. Page navigation uses the current row count. Bar visibility defaults on at boot and remains a session preference across saves, errors and documents; it does not alter stored files.
 - The vertical caret is a drawn graphic primitive, not a text character, with GBA-safe halfword writes. It stays visible on typing/navigation and blinks after about one second idle (36-frame phases).
 - Loaded filenames must fit 250 bytes to leave room for transient recovery suffixes. Longer names can be listed but are refused when opened. Long visible names are clipped by pixel width; the status buffer retains complete UTF-8 names, including the dirty marker.

@@ -31,6 +31,7 @@ void pixel(uint8_t* px,int x,int y){
  *p=(x&1)?uint16_t((*p&0x00ff)|0x0100):uint16_t((*p&0xff00)|1);
 }
 void title(bn::sprite_text_generator& ui,Sprites& sprites,const char* text){ui.set_center_alignment();ui.generate(0,-68,text,sprites);}
+void ui_line(bn::sprite_text_generator& ui,Sprites& sprites,int x,int y,const char* text){ui.set_left_alignment();ui.generate(x-120,y-72,text,sprites);}
 const char* const help[writer::Application::HELP_PAGES][6]={
  {"NORMAL LETTERS","D-pad holds a letter group","B = first  A = second  R = third","UP: ABC    RIGHT: DEF","DOWN: HIJ  LEFT: KLM","Release group for next session"},
  {"HOLD L: SECOND LAYER","L is held, never a toggle","B = first  A = second  R = third","L+UP: NOP   L+RIGHT: QRS","L+DOWN: TUW L+LEFT: XYZ","R in a group is a letter"},
@@ -51,26 +52,32 @@ void render(bn::palette_bitmap_bg_painter& painter,bn::sprite_text_generator& ui
  using writer::Scene;
  switch(app.scene()){
  case Scene::MENU:
-  title(ui,sprites,"GBA WRITER");ui.generate(0,-22,app.menu_selection()==0?"> NEW FILE":"  NEW FILE",sprites);ui.generate(0,2,app.menu_selection()==1?"> LOAD FILE":"  LOAD FILE",sprites);line(px,36,132,"SELECT: CONTROLS");break;
+  title(ui,sprites,"GBA WRITER");ui.generate(0,-22,app.menu_selection()==0?"> NEW FILE":"  NEW FILE",sprites);ui.generate(0,2,app.menu_selection()==1?"> LOAD FILE":"  LOAD FILE",sprites);
+  ui_line(ui,sprites,16,140,"Select: Controls");ui_line(ui,sprites,128,140,"Start: Credits");break;
  case Scene::DATE:{
   title(ui,sprites,"NEW FILE");auto d=app.date();
-  writer::format(buffer,sizeof(buffer),"%c DAY     %02d",app.date_field()==0?'>':' ',d.day);line(px,38,34,buffer);
-  writer::format(buffer,sizeof(buffer),"%c MONTH   %02d",app.date_field()==1?'>':' ',d.month);line(px,38,54,buffer);
-  writer::format(buffer,sizeof(buffer),"%c YEAR    %04d",app.date_field()==2?'>':' ',d.year);line(px,38,74,buffer);
-  line(px,8,108,"UP/DOWN: FIELD  LEFT/RIGHT: +/-");line(px,28,136,"A: CREATE   B: BACK");break;}
+  ui_line(ui,sprites,38,34,app.date_field()==0?"> DAY":"  DAY");writer::format(buffer,sizeof(buffer),"%c DAY     ",app.date_field()==0?'>':' ');int day_x=38+glyph_width(buffer);writer::format(buffer,sizeof(buffer),"%02d",d.day);line(px,day_x,34,buffer);
+  ui_line(ui,sprites,38,54,app.date_field()==1?"> MONTH":"  MONTH");writer::format(buffer,sizeof(buffer),"%c MONTH   ",app.date_field()==1?'>':' ');int month_x=38+glyph_width(buffer);writer::format(buffer,sizeof(buffer),"%02d",d.month);line(px,month_x,54,buffer);
+  ui_line(ui,sprites,38,74,app.date_field()==2?"> YEAR":"  YEAR");writer::format(buffer,sizeof(buffer),"%c YEAR    ",app.date_field()==2?'>':' ');int year_x=38+glyph_width(buffer);writer::format(buffer,sizeof(buffer),"%04d",d.year);line(px,year_x,74,buffer);
+  ui_line(ui,sprites,8,108,"UP/DOWN: FIELD  LEFT/RIGHT: +/-");ui_line(ui,sprites,28,136,"A: CREATE   B: BACK");break;}
  case Scene::LOAD:{
-  title(ui,sprites,"LOAD FILE");if(!storage.count())line(px,48,64,"NO TXT FILES");
+  title(ui,sprites,"LOAD FILE");if(!storage.count())ui_line(ui,sprites,48,64,"NO TXT FILES");
   int first=(app.selected_file()/6)*6;
-  for(int i=first;i<storage.count()&&i<first+6;++i){int y=24+(i-first)*18;line(px,6,y,i==app.selected_file()?">":" ");line(px,18,y,storage.name(i),216);}
-  line(px,8,138,"UP/DOWN  A: OPEN  B: BACK");break;}
+  for(int i=first;i<storage.count()&&i<first+6;++i){int y=24+(i-first)*18;ui_line(ui,sprites,6,y,i==app.selected_file()?">":" ");line(px,18,y,storage.name(i),216);}
+  ui_line(ui,sprites,8,138,"UP/DOWN  A: OPEN  B: BACK");break;}
  case Scene::HELP:
   writer::format(buffer,sizeof(buffer),"CONTROLS %d/%d",app.help_page()+1,writer::Application::HELP_PAGES);title(ui,sprites,buffer);
-  for(int row=0;row<6;++row){line(px,8,24+row*18,help[app.help_page()][row]);}line(px,8,138,"LEFT/RIGHT: PAGE  B: BACK");break;
+  for(int row=0;row<6;++row){line(px,8,24+row*18,help[app.help_page()][row]);}ui_line(ui,sprites,8,138,"Left/Right: Page  B: Back");break;
+ case Scene::CREDITS:
+  title(ui,sprites,"CREDITS");
+  line(px,8,38,"Made by Halim Jarrar");line(px,8,60,"(C) 2026");
+  line(px,8,82,"halim-jarrar.de");line(px,8,104,"monday@halim-jarrar.de");
+  ui_line(ui,sprites,8,138,"B: Back");break;
  case Scene::ERROR:
-  title(ui,sprites,"PLEASE NOTE");line(px,8,42,app.message());
-  if(!std::strcmp(app.message(),"FILE ALREADY EXISTS")){char name[13];writer::format_diary_name(app.date(),name);line(px,48,64,name);line(px,20,88,"CHOOSE ANOTHER DATE");}
-  else if(!std::strcmp(app.message(),"RECOVERY: CHECK SD ON PC")){line(px,8,66,"Preserved recovery copies.");line(px,8,86,"Back up SD before repair.");}
-  line(px,70,132,"A: OK");break;
+  title(ui,sprites,"PLEASE NOTE");ui_line(ui,sprites,8,42,app.message());
+  if(!std::strcmp(app.message(),"FILE ALREADY EXISTS")){char name[13];writer::format_diary_name(app.date(),name);line(px,48,64,name);ui_line(ui,sprites,20,88,"CHOOSE ANOTHER DATE");}
+  else if(!std::strcmp(app.message(),"RECOVERY: CHECK SD ON PC")){ui_line(ui,sprites,8,66,"Preserved recovery copies.");ui_line(ui,sprites,8,86,"Back up SD before repair.");}
+  ui_line(ui,sprites,70,132,"A: OK");break;
  case Scene::EDITOR:{
   if(app.status_visible()){
    if(app.message()[0])line(px,8,writer::STATUS_Y,app.message(),128);else{
@@ -106,7 +113,7 @@ int main(){
   // Show feedback BEFORE potentially slow hardware operations. Never probe SD at boot.
   bool checking=app.scene()==writer::Scene::MENU&&bn::keypad::a_pressed();
   bool saving=app.save_feedback(snapshot);
-  if(checking||saving){sprites.clear();painter.fill(0);line(reinterpret_cast<uint8_t*>(painter.page().data()),32,64,checking?"CHECKING SD...":"SAVING - DO NOT POWER OFF");painter.flip_page_later();bn::core::update();}
+  if(checking||saving){sprites.clear();painter.fill(0);if(checking)ui_line(ui,sprites,32,64,"CHECKING SD...");else line(reinterpret_cast<uint8_t*>(painter.page().data()),32,64,"SAVING - DO NOT POWER OFF");painter.flip_page_later();bn::core::update();}
   app.frame(snapshot);if(app.take_redraw())render(painter,ui,sprites);bn::core::update();
  }
 }

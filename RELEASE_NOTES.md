@@ -1,6 +1,14 @@
-# GBA Writer v0.2.1 — hardware-unverified prerelease
+# GBA Writer v0.3.0 — hardware-unverified prerelease
 
-## Changes from v0.2.0
+## Changes from v0.2.1
+
+- Main-menu START opens credits; B returns without accessing SD. The writing-font body reads `Made by Halim Jarrar`, `(C) 2026`, `halim-jarrar.de`, `monday@halim-jarrar.de`.
+- The adjacent bottom prompts are exactly `Select: Controls` and `Start: Credits`, in the existing blue UI font. Menu labels, date labels, load markers, error explanations and navigation hints use that font; numeric date values and text filenames retain the writing font. Controls/credits content and saving indications also retain the writing font.
+- Display-only **whole-word** wrapping keeps fitting words intact, splitting only words wider than the viewport. One lookahead per word keeps reflow linear. Original UTF-8 bytes, whitespace, BOM, CRLF and explicit newlines remain unchanged; row indexing and caret navigation follow the same display boundaries.
+- Editor body/status fonts and positions, controls, storage/save/recovery behavior and font assets are unchanged.
+- Added sanitizer-backed production menu font-routing and bounds checks plus word-wrap/UTF-8/whitespace/navigation/capacity/linear-work regressions. Updated controls PDF is included as a release asset.
+
+## Retained v0.2.1 changes (from v0.2.0)
 
 - Hold **A alone** to repeat spaces or **B alone** to repeat UTF-8 codepoint backspace. The existing START-navigation timer is shared: immediate initial edit, first repeat after **24 frames**, then every **5 frames**.
 - Repeat requires a fresh isolated press. Any additional button cancels it; chord/modifier release tails cannot rearm it. Letter, SELECT, save and status-toggle chords keep their existing press/release behavior.
@@ -52,7 +60,7 @@ Independent emulator verification is reported with release QA artifacts; do not 
 ## Limits and recovery warning
 
 - **24 KiB maximum UTF-8 content**, fixed contiguous buffer and bounded visual-row index. Oversize, malformed UTF-8 and embedded NUL input are rejected.
-- Only required font coverage is guaranteed. Editing is codepoint-based, not grapheme-based. Wrapping is character-based; tabs have fixed display width; Enter inserts LF and existing CRLF/BOM bytes are preserved.
+- Only required font coverage is guaranteed. Editing is codepoint-based, not grapheme-based. Wrapping is display-only whole-word wrapping, splitting only oversized words; tabs have fixed display width; Enter inserts LF and existing whitespace/CRLF/BOM bytes are preserved.
 - Supercard SD only; no generic emulator-save, other-flashcart, EPUB, undo, autosave or file-manager functionality.
 - SD probing is lazy; missing-card errors can take a long driver timeout after selecting New/Load.
 - FAT rename is **not atomic**. Canonical + `.gwt` may share clusters after a failed rename. Ambiguous states are kept intact and require PC-side recovery; never blindly delete recovery artifacts on the original card. Preserve a full card image and recover independent copies first.

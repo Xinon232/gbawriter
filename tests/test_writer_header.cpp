@@ -61,6 +61,22 @@ static void editor_positions(){
   assert(app.message()[0]);compare(true,"ABC","Shift");app.frame(0);
   tap(key(Button::START)|key(Button::SELECT));compare(false,"","");
   tap(key(Button::START)|key(Button::SELECT));compare(true,"","Shift");
+  // Production framebuffer: a fitting word goes to the next display row,
+  // retaining the separator bytes and leaving editor typography unchanged.
+  tap(key(Button::START)|key(Button::SELECT));
+  std::string prefix;
+  while(font_width((prefix+"a bbbbbbbbbb").c_str())<=220)prefix+='a';
+  prefix += "a ";
+  std::string document=prefix+"bbbbbbbbbb";
+  app.text().set_text(document.c_str());app.layout().reflow(app.text(),220,glyph_width);
+  assert(app.layout().rows()==2 && app.layout().row_start(1)==prefix.size());
+  std::memset(actual,0,sizeof(actual));std::memset(expected,0,sizeof(expected));
+  render_editor(actual,app,storage);
+  draw_text_idx8_bus16_range(prefix.c_str(),expected+8,0,220,240,1);
+  draw_text_idx8_bus16_range("bbbbbbbbbb",expected+18*240+8,0,220,240,1);
+  for(int y=18;y<34;++y)expected[y*240+8+font_width("bbbbbbbbbb")]=1;
+  assert(std::memcmp(actual,expected,sizeof(actual))==0);
+  assert(std::string(app.text().data())==document);
   std::filesystem::remove_all(root);
   std::cout<<"PASS: actual editor pixels: file/group/case, text/caret top, gutter, 7/9 rows and toggles\n";
 }

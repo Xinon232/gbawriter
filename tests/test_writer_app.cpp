@@ -22,6 +22,13 @@ int main() {
     a.frame(key(b));
     a.frame(0);
   };
+  tap(Button::START);
+  assert(a.scene() != Scene::MENU && a.scene() != Scene::HELP);
+  assert(storage.operations() == 0);
+  tap(Button::A);
+  assert(a.scene() != Scene::MENU); // only B returns
+  tap(Button::B);
+  assert(a.scene() == Scene::MENU && storage.operations() == 0);
   tap(Button::A);
   assert(a.scene() == Scene::DATE);
   assert(a.date().day == 10 && a.date().month == 7 && a.date().year == 2026);

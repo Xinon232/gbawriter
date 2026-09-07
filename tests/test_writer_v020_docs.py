@@ -13,10 +13,11 @@ assert 'HELP_PAGES = 13' in app
 assert 'quickly' not in main
 for path in ['README.md','RELEASE_NOTES.md']:
     text=(root/path).read_text()
-    assert 'v0.2.1' in text and 'prerelease' in text
+    assert 'v0.3.0' in text and 'prerelease' in text
+    assert 'whole-word' in text and 'Start: Credits' in text
     assert 'START+SELECT' in text and 'no timing window' in text
     assert 'filename → active letter group → Shift/Caps' in text
     assert '24 frames' in text and '5 frames' in text
     assert 'A alone' in text and 'B alone' in text
-assert 'name: GBAWriter-v0.2.1' in (root/'.github/workflows/build-rom.yml').read_text()
-print('PASS: v0.2.1 controls/help and hardware-unverified prerelease documentation')
+assert 'name: GBAWriter-v0.3.0' in (root/'.github/workflows/build-rom.yml').read_text()
+print('PASS: v0.3.0 controls/help and hardware-unverified prerelease documentation')

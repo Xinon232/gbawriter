@@ -23,8 +23,26 @@ void Layout::reflow(TextModel &text, int w, Width measure) {
   _rows[0] = 0;
   _count = 1;
   int x = 0;
+  std::size_t word_end = 0;
   const char *s = text.data();
   for (std::size_t p = 0; p < text.bytes();) {
+    // Look ahead once per word, including oversized words. Whitespace remains
+    // in the row index and document; only the display boundary moves.
+    if (p >= word_end && s[p] != ' ' && s[p] != '\t' &&
+        s[p] != '\r' && s[p] != '\n') {
+      int word_width = 0;
+      word_end = p;
+      while (word_end < text.bytes() && s[word_end] != ' ' &&
+             s[word_end] != '\t' && s[word_end] != '\r' && s[word_end] != '\n') {
+        char glyph[5];
+        word_end = character(s, word_end, glyph);
+        word_width += width(glyph);
+      }
+      if (x && word_width <= _width && x + word_width > _width) {
+        _rows[_count++] = p;
+        x = 0;
+      }
+    }
     char ch[5];
     std::size_t next = character(s, p, ch);
     if (ch[0] == '\n') {
