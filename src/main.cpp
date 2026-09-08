@@ -33,26 +33,32 @@ void pixel(uint8_t* px,int x,int y){
 void title(bn::sprite_text_generator& ui,Sprites& sprites,const char* text){ui.set_center_alignment();ui.generate(0,-68,text,sprites);}
 void ui_line(bn::sprite_text_generator& ui,Sprites& sprites,int x,int y,const char* text){ui.set_left_alignment();ui.generate(x-120,y-72,text,sprites);}
 const char* const help[writer::Application::HELP_PAGES][6]={
+ {"ABOUT / FILES","Create and edit TXT files.","Save directly to SD.","Put TXT files in SD root folder:","/gbawriter","Supercard SD required"},
+ {"MENUS / FILES","UP/DOWN: select  A: open","NEW FILE: choose date, A: create","LOAD FILE: choose TXT, A: open","B: back  Error message: A: OK","Menu SELECT: help START: credits"},
+ {"REPEAT / SAVE SAFETY","Hold A/B alone: repeat edit","Hold START navigation: repeat","Adding a key cancels edit repeat","No autosave or discard shortcut","Do not power off while saving"},
  {"NORMAL LETTERS","D-pad holds a letter group","B = first  A = second  R = third","UP: ABC    RIGHT: DEF","DOWN: HIJ  LEFT: KLM","Release group for next session"},
  {"HOLD L: SECOND LAYER","L is held, never a toggle","B = first  A = second  R = third","L+UP: NOP   L+RIGHT: QRS","L+DOWN: TUW L+LEFT: XYZ","R in a group is a letter"},
  {"SPECIAL LETTERS / BASIC EDIT","Keep DOWN held: R,R = g","Keep L+DOWN held: R,R = v","Release between R presses: jj/ww","A alone: space  B: backspace","START release alone: newline"},
  {"SHIFT / CAPS","R cycle: normal, Shift, CAPS","One isolated tap per step","No timing window","Shift: next alphabetic letter","Digits/signs do not use Shift"},
  {"START: NAVIGATE","Hold START + LEFT/RIGHT","Move one UTF-8 character","START+UP/DOWN: visual rows","START+L/R: previous/next page","Navigation never types letters"},
  {"START: SAVE","START+A: save this file","START+B: save, then main menu","Save failure keeps your text","Release START after command:","No accidental newline"},
- {"SELECT: ONE LIVE CHARACTER","Press SELECT: inserts . now","Hold SELECT to replace it","Release SELECT to commit one","UP: 1 2 3 4 5 6 7 8 9 0","DOWN: 0 9 8 7 6 5 4 3 2 1"},
+ {"SELECT: ONE LIVE CHARACTER","SELECT alone: inserts . now","Hold SELECT to replace it","Release SELECT to commit one","UP: 1 2 3 4 5 6 7 8 9 0","DOWN: 0 9 8 7 6 5 4 3 2 1"},
  {"SELECT: COMMON PUNCTUATION","SELECT+R forward:",". , ' \" : ! ? .","SELECT+L reverse:",". ? ! : \" ' , .","A letter chord takes priority"},
  {"SELECT: ADDITIONAL SIGNS","SELECT+RIGHT forward:",". ( ) / ; @ # % & _ + = - .","SELECT+LEFT: exact reverse","Every step replaces one glyph","No extra characters appended"},
  {"INTERNATIONAL LETTERS 1","A: á ä à â ã å æ","C: ç č ć  E: é è ë ê","I: í ï ì î","N: ñ ń","SELECT + normal letter chord"},
  {"INTERNATIONAL LETTERS 2","O: ó ö ô ò õ ø œ","S: ß š ś  U: ü ú ù û","Y: ý ÿ  Z: ž ź ż","L-layer chords work here too","Shift / CAPS applies to accents"},
- {"INTERNATIONAL CYCLING","Keep SELECT + group held","Repeat final B/A/R to cycle","E chord: é è ë ê, then é","Release SELECT to commit","ß stays ß, even with CAPS"},
- {"STATUS BAR / DATE","START+SELECT: bar / full screen","Cancels live SELECT character","Bottom: file, group, Shift/Caps","Date UP/DOWN: choose field","Date LEFT/RIGHT: change value"}
+ {"ACCENTS: EITHER ORDER","Hold SELECT, then type a chord","Or type a letter; keep held:","Exact direction, L if used,","and its producing B/A/R button","Then press SELECT: same letter"},
+ {"HELD LETTER: SELECT SECOND","First accent; keeps its case","No extra period or letter","No time limit; no extra keys","Release/change chord: ineligible","No variants? Letter unchanged"},
+ {"INTERNATIONAL CYCLING","Keep SELECT + group held","Release/repress final B/A/R","E chord: é è ë ê, then é","Release SELECT to keep result","ß stays ß, even with CAPS"},
+ {"ACCENT EXAMPLE / STATUS","RIGHT+A held, then SELECT: é","START+SELECT: bar / full screen","Cancels new provisional only","Converted existing letter stays","Release both to end status chord"},
+ {"STATUS BAR / DATE","Bottom: file, group, Shift/Caps","Date UP/DOWN: choose field","Date LEFT/RIGHT: change value","Date A: create  B: back","No autosave or discard shortcut"}
 };
 void render(bn::palette_bitmap_bg_painter& painter,bn::sprite_text_generator& ui,Sprites& sprites){
  sprites.clear();painter.fill(0);auto* px=reinterpret_cast<uint8_t*>(painter.page().data());char buffer[writer::FILE_NAME_SIZE + 2]; // Complete filename + dirty prefix + NUL; clip pixels, not UTF-8 bytes.
  using writer::Scene;
  switch(app.scene()){
  case Scene::MENU:
-  title(ui,sprites,"GBA WRITER");ui.generate(0,-22,app.menu_selection()==0?"> NEW FILE":"  NEW FILE",sprites);ui.generate(0,2,app.menu_selection()==1?"> LOAD FILE":"  LOAD FILE",sprites);
+  title(ui,sprites,"gbawriter V1.0");ui_line(ui,sprites,70,28,"files: /gbawriter");ui.set_center_alignment();ui.generate(0,-22,app.menu_selection()==0?"> NEW FILE":"  NEW FILE",sprites);ui.generate(0,2,app.menu_selection()==1?"> LOAD FILE":"  LOAD FILE",sprites);
   ui_line(ui,sprites,16,140,"Select: Controls");ui_line(ui,sprites,128,140,"Start: Credits");break;
  case Scene::DATE:{
   title(ui,sprites,"NEW FILE");auto d=app.date();
@@ -67,7 +73,8 @@ void render(bn::palette_bitmap_bg_painter& painter,bn::sprite_text_generator& ui
   ui_line(ui,sprites,8,138,"UP/DOWN  A: OPEN  B: BACK");break;}
  case Scene::HELP:
   writer::format(buffer,sizeof(buffer),"CONTROLS %d/%d",app.help_page()+1,writer::Application::HELP_PAGES);title(ui,sprites,buffer);
-  for(int row=0;row<6;++row){line(px,8,24+row*18,help[app.help_page()][row]);}ui_line(ui,sprites,8,138,"Left/Right: Page  B: Back");break;
+  ui_line(ui,sprites,8,24,help[app.help_page()][0]);
+  for(int row=1;row<6;++row){line(px,8,24+row*18,help[app.help_page()][row]);}ui_line(ui,sprites,8,138,"Left/Right: Page  B: Back");break;
  case Scene::CREDITS:
   title(ui,sprites,"CREDITS");
   line(px,8,38,"Made by Halim Jarrar");line(px,8,60,"(C) 2026");

@@ -85,13 +85,18 @@ public:
   InputEvent release(Button button);
   bool shift_armed() const { return _shift; }
   bool caps() const { return _caps; }
-  bool select_active() const {return _select;}
+  // Host provisional ownership: an existing-letter session owns no insertion
+  // to cancel on Start+Select, and must bypass the provisional replacement gate.
+  bool select_active() const {return _select && !_select_existing;}
   const char* active_group() const;
   bool toggle_latched() const { return _toggle_latched; }
   void reset_transient(){bool shift=_shift,caps=_caps;*this=InputState();_shift=shift;_caps=caps;}
-  void reject_edit(){_group_r_count=0;_rejected=true;}
+  void reject_edit(){_letter_keys=0;_group_r_count=0;_rejected=true;}
 
 private:
+  uint16_t _letter_keys=0;
+  char _letter_base=0;
+  bool _letter_upper=false, _select_existing=false;
   bool _toggle_latched=false;
   uint16_t _held;
   uint16_t _previous=0;

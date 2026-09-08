@@ -293,7 +293,7 @@ void InputState::set(Button b, bool on) {
 }
 const char *InputState::case_text(const char *lower, char) {
   std::strcpy(_output, lower);
-  if (!(_caps || _shift))
+  if (!(_select_existing ? _letter_upper : (_caps || _shift)))
     return _output;
   if (static_cast<unsigned char>(lower[0]) < 128) {
     if (lower[0] >= 'a' && lower[0] <= 'z')
@@ -334,6 +334,8 @@ InputEvent InputState::letter_event(char base, bool select) {
 }
 InputEvent InputState::press(Button b, bool fresh) {
   set(b, true);
+  if ((_held & ~(1u << unsigned(Button::SELECT))) != _letter_keys)
+    _letter_keys = 0;
   if (b == Button::L || b == Button::A || b == Button::B ||
       b == Button::START || b == Button::SELECT)
     _group_r_count = 0;
@@ -371,6 +373,11 @@ InputEvent InputState::press(Button b, bool fresh) {
   if (b == Button::SELECT) {
     _select = true;
     _alternate_base = 0;
+    if (_letter_keys && (_held & ~(1u << unsigned(Button::SELECT))) == _letter_keys) {
+      _select_existing = true;
+      return letter_event(_letter_base, true);
+    }
+    _select_existing = false;
     std::strcpy(_select_value, ".");
     return {EventKind::INSERT, "."};
   }
@@ -386,14 +393,25 @@ InputEvent InputState::press(Button b, bool fresh) {
     int n = b == Button::B ? 0 : b == Button::A ? 1 : 2;
     const char *p = normal(dir, layer, n);
     char base = *p;
+    const uint16_t letter_keys = directions | (layer ? (1u << unsigned(Button::L)) : 0) |
+                                 (1u << unsigned(b));
+    const uint16_t eligible_keys = _held == letter_keys ? letter_keys : 0;
     if (!_select && b == Button::R && dir == 'D') {
       if(!_group_r_count)_group_upper=_caps||_shift;
       ++_group_r_count;
       if (_group_r_count == 2) {
         _group_r_count = 0;
+        _letter_keys = eligible_keys;
+        _letter_base = layer ? 'v' : 'g';
+        _letter_upper = _group_upper;
         return {EventKind::REPLACE,
                 (_group_upper ? (layer?"V":"G") : (layer?"v":"g"))};
       }
+    }
+    if (!_select) {
+      _letter_keys = eligible_keys;
+      _letter_base = base;
+      _letter_upper = _caps || _shift;
     }
     return letter_event(base, _select);
   }
@@ -446,6 +464,7 @@ InputEvent InputState::press(Button b, bool fresh) {
 }
 InputEvent InputState::release(Button b) {
   set(b, false);
+  if (_letter_keys & (1u << unsigned(b))) _letter_keys = 0;
   if (b == Button::START) {
     bool used = _start_used;
     _start_used = false;
@@ -457,6 +476,7 @@ InputEvent InputState::release(Button b) {
       _shift = false;
     _select_alpha = false;
     _select = false;
+    _select_existing = false;
     _alternate_base = 0;
   }
   if (b == Button::UP || b == Button::DOWN || b == Button::LEFT ||
@@ -467,6 +487,9 @@ InputEvent InputState::release(Button b) {
   return {EventKind::NONE, ""};
 }
 void InputState::update(uint16_t snapshot,Consumer consume,void* context) {
+  // Eligibility is continuous exact group + producing button, never a timer.
+  if ((snapshot & ~(1u << unsigned(Button::SELECT))) != _letter_keys)
+    _letter_keys = 0;
   constexpr uint16_t chord=(1u<<unsigned(Button::START))|(1u<<unsigned(Button::SELECT));
   // Own the entire chord session before releases, typing, repeats or saves.
   if(_toggle_latched){

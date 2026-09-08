@@ -7,5 +7,6 @@ build/
 *.gba
 *.zip
 .DS_Store
+tests/select-accent-evidence/
 __pycache__/
 *.pyc

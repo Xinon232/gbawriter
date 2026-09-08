@@ -1,3 +1,27 @@
+# gbawriter v1.0.0 — hardware-unverified prerelease
+
+Create and edit TXT files on your Game Boy Advance.
+
+## Changes since v0.3.1
+
+- Lowercase `gbawriter V1.0` home title, `/gbawriter` folder label, and clearer menu/help typography.
+- Accents now work in either press order: hold Select then type, or keep the exact producing letter chord held and press Select to change that same letter. Case is retained; no duplicate letter or period is inserted. Start+Select cancels only a newly inserted provisional character, not an existing letter converted to an accent.
+- Complete 19-page in-app help and four-page `gbawriter-full-controls.pdf`, including both accent orders, examples, typing, navigation, saving and recovery cautions.
+- Portable input and production-host regression matrices integrated into the full host runner.
+
+## Release assets and verification
+
+- `gbawriter.gba` SHA256: `00327229f91ecc433245f86b8ab4e28fea85237da6464a4a5ee977cd3b7d7a63`
+- `gbawriter-full-controls.pdf` SHA256: `9c7a0eac792202b4c9e3ec972cda3c2e001a1cde090ab7119ba71993190a0335`
+- Frozen source/artifact manifests match the reviewed build. Full host and ASan/UBSan suites passed; production FatFS/FAT16 integration passed 795 checks with 137 injected disk-request boundaries and zero failures.
+- Exact-ROM emulator checks passed all 19 help pages, credits and repeated menu round trips. All four PDF pages were visually inspected.
+- Limited debugger-seeded empty-editor keypad evidence demonstrated letter-first conversion and cycling only; the optional full emulator typing suite did not complete. Broader input semantics are covered by production-host tests, not claimed as full emulator verification.
+- **Physical GBA/Supercard hardware and save safety remain unverified.** Use backed-up cards and disposable documents; never keep the only copy of your writing here.
+- Release tag is `v1.0.0`; the verified app/PDF display `V1.0`. The inherited internal ROM header title remains `GBA WRITER`; it was not changed or rebuilt solely for publication metadata.
+- CI results must be read from the exact release commit; local verification is not a claim that GitHub CI is green. CI has read-only permissions and no release-upload automation.
+
+## Historical release notes (unchanged; not current feature counts)
+
 # GBA Writer v0.3.1 — hardware-unverified prerelease
 
 ## Changes from v0.3.0

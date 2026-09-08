@@ -1,6 +1,8 @@
-# GBA Writer — v0.3.1
+# gbawriter — v1.0.0
 
-A controller-native plain-text writer and diary for Game Boy Advance, based on [GBAReader v0.5.0](https://github.com/Xinon232/gbareader). It uses the inherited Butano menus, SuperFW bitmap text renderer, fonts, and Supercard SD/FatFS path. There is no QWERTY keyboard, network service, or AI component.
+Create and edit TXT files on your Game Boy Advance. Save your writing directly to the SD card, or open an existing text file to keep working. Put your TXT files in `/gbawriter` at the root of the SD card. Requires a compatible Supercard SD.
+
+Based on [GBAReader v0.5.0](https://github.com/Xinon232/gbareader), using Butano menus, the SuperFW bitmap text renderer and fonts, and Supercard SD/FatFS storage. There is no QWERTY keyboard, network service, or AI component.
 
 > **Hardware-unverified prerelease.** Host tests and software filesystem fault injection pass; these are **not proof that saving is safe on a real GBA + Supercard SD**. Use disposable documents and a backed-up SD card until the hardware checklist below is completed. Do not entrust the only copy of a diary to this release. This version is a prerelease pending physical-hardware verification.
 
@@ -26,7 +28,11 @@ If no dated documents exist, the manual starting date is **10 July 2026**. This 
 
 Main-menu **SELECT** opens controls and **START** opens credits; **B** returns from either. The adjacent bottom hints read exactly `Select: Controls` and `Start: Credits`. Credits show `Made by Halim Jarrar`, `(C) 2026`, `halim-jarrar.de`, and `monday@halim-jarrar.de`.
 
-Menu interface text and navigation hints use the existing blue UI font. Numeric date values, text filenames, saving indications, controls content and credits content retain the writing font. Editor typography and status positions are unchanged.
+The suite home screen reads `gbawriter V1.0` and `files: /gbawriter`, with NEW FILE first/default and LOAD FILE second. The UI label is independent of the release tag.
+
+Menu interface text, help section headings and navigation hints use the existing blue UI font. Numeric date values, text filenames, saving indications, controls body text and credits content retain the SuperFW-based writing font. Editor typography and status positions are unchanged.
+
+The [full-controls PDF](gbawriter-full-controls.pdf) includes the description, file placement and every control below, with author credit Halim Jarrar. Regenerate it with `python3 tools/build_controls_pdf.py` in an environment with ReportLab and DejaVu Sans installed.
 
 Hold a direction, then press **B / A / R** to choose its **first / second / third** letter. Lowercase is the default.
 
@@ -70,7 +76,7 @@ Navigation repeats while held. Releasing START after a recognized command **does
 
 ### SELECT: one provisional character
 
-Press SELECT to insert **`.` immediately**. Keep SELECT held to change **that same character**; release to commit it. Cycling never appends additional characters.
+Press SELECT alone to insert **`.` immediately**. Keep SELECT held to change **that same character**; release to keep it. Exception: SELECT after an eligible continuously held letter chord converts the existing letter instead (see International letters). Cycling never appends additional characters.
 
 | While SELECT is held | Cycle |
 |---|---|
@@ -81,11 +87,15 @@ Press SELECT to insert **`.` immediately**. Keep SELECT held to change **that sa
 | Right | `. → ( → ) → / → ; → @ → # → % → & → _ → + → = → - → .` |
 | Left | Exact reverse additional-symbol cycle |
 
-A completed letter chord takes priority over intermediate directional/punctuation changes. For example SELECT, then Right, then A changes the same provisional `.` to `(` and then to `é`, not three characters. A complete L-layer chord similarly overrides the temporary SELECT+L punctuation step. Unsupported accent families leave the provisional glyph unchanged. **START+SELECT toggles the status bar in the editor only**, in either press order. A SELECT-first provisional character is cancelled, restoring the original caret and dirty state; committed text is untouched. The chord never types, saves, or adds a newline. It toggles once per hold and suppresses commands until both START and SELECT are released; other held buttons do not prevent rearming.
+A completed letter chord takes priority over intermediate directional/punctuation changes. For example SELECT, then Right, then A changes the same provisional `.` to `(` and then to `é`, not three characters. A complete L-layer chord similarly overrides the temporary SELECT+L punctuation step. Unsupported accent families leave the provisional glyph unchanged. **START+SELECT toggles the status bar in the editor only**, in either press order. It cancels only a newly inserted SELECT provisional character, restoring the original caret and dirty state. A converted existing letter stays accented; it is not deleted. The chord never types, saves, or adds a newline. It toggles once per hold and suppresses commands until both START and SELECT are released; other held buttons do not prevent rearming.
 
 ### International letters
 
-With SELECT held, use the normal letter chord, then **repeat its final B/A/R selector while the same group remains held** to cycle in this exact order. Release SELECT to commit one character.
+**Accents work in either order:** hold SELECT, then enter the normal letter combination; or enter a letter and keep its **exact single D-pad direction, L if used, and producing B/A/R button continuously held**, then press SELECT. That same letter changes to its first accented variant, keeping its case, without adding a period or another letter. There is no time limit, but releasing or changing the combination ends eligibility. Other extra buttons disqualify this letter-first gesture; diagonals are not letter groups. A letter with no accent variants stays unchanged in the letter-first order.
+
+**Example:** hold RIGHT and press A to type `e`; keep RIGHT+A held and press SELECT to turn that same `e` into `é`. In the other order, hold SELECT, then RIGHT and press A to produce `é` as one character. The held-L groups work in both orders too.
+
+While SELECT and the same group remain held, **release and press the final B/A/R selector again** to cycle in the exact order below. Keep the direction and L layer (if used) held during cycling. Release SELECT to keep the current result. The letter-first result keeps the original letter's lowercase/Shift/Caps case, even after one-shot Shift was consumed.
 
 | Family | Lowercase cycle | Uppercase equivalents |
 |---|---|---|
@@ -100,7 +110,7 @@ With SELECT held, use the normal letter chord, then **repeat its final B/A/R sel
 | Y | ý ÿ | Ý Ÿ |
 | Z | ž ź ż | Ž Ź Ż |
 
-N/S/U/Y/Z use the held L layer. Cycles wrap back to the first alternate. All 77 distinct required lowercase/uppercase glyphs are verified against the real font packs and renderer, including even/odd pixel addressing. Main-menu **SELECT** opens 13 control pages; Left/Right changes page; B returns. Help strings are checked for glyph coverage and screen width.
+N/S/U/Y/Z use the held L layer. Cycles wrap back to the first alternate. All 77 distinct required lowercase/uppercase glyphs are verified against the real font packs and renderer, including even/odd pixel addressing. Main-menu **SELECT** opens 19 control pages; Left/Right changes page; B returns. Help strings are checked for glyph coverage and screen width.
 
 ## Text, memory and limits
 

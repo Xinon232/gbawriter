@@ -61,13 +61,18 @@ int main(int argc,char** argv){
  Application app(storage,[](const char*){return 6;}); app.boot();
  auto tap=[&](Button b){app.frame(1u<<unsigned(b));app.frame(0);};
  auto draw=[&](){draws.clear();render(app,storage);};
- draw(); check("Select: Controls",true);check("Start: Credits",true);only_ui();
+ draw(); check("gbawriter V1.0",true);check("files: /gbawriter",true);check("> NEW FILE",true);check("  LOAD FILE",true);check("Select: Controls",true);check("Start: Credits",true);only_ui();
  Draw select{},start{};for(auto& d:draws){if(d.text=="Select: Controls")select=d;if(d.text=="Start: Credits")start=d;}
  assert(select.y==start.y && select.y>=136 && select.x<start.x);
  tap(Button::START);draw();
  for(auto s:{"Made by Halim Jarrar","(C) 2026","halim-jarrar.de","monday@halim-jarrar.de"})check(s,false);
  check("B: Back",true);tap(Button::B);tap(Button::SELECT);
- for(int page=0;page<Application::HELP_PAGES;++page){draw();for(auto s:help[page])check(s,false);check("Left/Right: Page  B: Back",true);tap(Button::RIGHT);}
+ assert(std::string(help[0][1])=="Create and edit TXT files.");
+ assert(std::string(help[0][2])=="Save directly to SD.");
+ assert(std::string(help[0][3])=="Put TXT files in SD root folder:");
+ assert(std::string(help[0][4])=="/gbawriter");
+ for(int page=0;page<Application::HELP_PAGES;++page){draw();check(help[page][0],true);for(int row=1;row<6;++row)check(help[page][row],false);check("Left/Right: Page  B: Back",true);tap(Button::RIGHT);}
+ bool repeat=false,open=false;for(auto& page:help)for(auto s:page){repeat|=std::string(s)=="Hold A/B alone: repeat edit";open|=std::string(s)=="UP/DOWN: select  A: open";}assert(repeat&&open);
  tap(Button::B);tap(Button::DOWN);tap(Button::A);draw();check("NO TXT FILES",true);only_ui();
  tap(Button::B);tap(Button::UP);tap(Button::A);draw();
  check("> DAY",true);check("  MONTH",true);check("  YEAR",true);
