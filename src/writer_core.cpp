@@ -334,6 +334,9 @@ InputEvent InputState::letter_event(char base, bool select) {
 }
 InputEvent InputState::press(Button b, bool fresh) {
   set(b, true);
+  // Public events own these edges too; update must not invent a second press.
+  _previous |= 1u << unsigned(b);
+  if (_held != (1u << unsigned(Button::R))) _r_pending = false;
   if ((_held & ~(1u << unsigned(Button::SELECT))) != _letter_keys)
     _letter_keys = 0;
   if (b == Button::L || b == Button::A || b == Button::B ||
@@ -442,18 +445,9 @@ InputEvent InputState::press(Button b, bool fresh) {
     }
     return {EventKind::NONE, ""};
   }
-  if (b == Button::R) {
-    if (_caps) {
-      _caps = false;
-      _shift = false;
-      return {EventKind::NONE, ""};
-    }
-    if (_shift) {
-      _shift = false;
-      _caps = true;
-      return {EventKind::NONE, ""};
-    }
-    _shift = true;
+  if (b == Button::R && _held == (1u << unsigned(Button::R))) {
+    _r_pending = true;
+    _r_frames = 0;
     return {EventKind::NONE, ""};
   }
   if (!_select && b == Button::A)
@@ -464,6 +458,12 @@ InputEvent InputState::press(Button b, bool fresh) {
 }
 InputEvent InputState::release(Button b) {
   set(b, false);
+  _previous &= ~(1u << unsigned(b));
+  if (b == Button::R && _r_pending) {
+    _shift = !_shift && !_caps;
+    _caps = false;
+    _r_pending = false;
+  }
   if (_letter_keys & (1u << unsigned(b))) _letter_keys = 0;
   if (b == Button::START) {
     bool used = _start_used;
@@ -518,14 +518,16 @@ void InputState::update(uint16_t snapshot,Consumer consume,void* context) {
   };
   // Release state before fresh presses; then every press sees the full hardware snapshot.
   for(auto b:order)if(released&(1u<<unsigned(b))) {
-    if(b==Button::R&&_r_pending){_held=0;dispatch(Button::R,false);_r_pending=false;}
     dispatch(b,true);
   }
   _held=snapshot;
   if(snapshot & ~(1u<<unsigned(Button::R)))_r_pending=false;
   for(auto b:order)if(pressed&(1u<<unsigned(b))) {
-    if(b==Button::R && snapshot==(1u<<unsigned(Button::R))){_r_pending=true;continue;}
     dispatch(b,false);
+  }
+  if(snapshot == (1u<<unsigned(Button::R)) && _r_pending && !(pressed&(1u<<unsigned(Button::R))) && !_shift && !_caps &&
+     ++_r_frames>=CAPS_HOLD_DELAY){
+    _caps=true;_r_pending=false;
   }
   const uint16_t navigation=snapshot & (15u | (1u<<unsigned(Button::L)) | (1u<<unsigned(Button::R)));
   const bool isolated_edit=snapshot==(1u<<unsigned(Button::A)) || snapshot==(1u<<unsigned(Button::B));

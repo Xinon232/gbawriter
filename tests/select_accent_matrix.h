@@ -20,7 +20,7 @@ template<class H> void accent_matrix(){
  constexpr unsigned SELECT=512,START=256,R=128;
  for(const auto& row:accent_rows)for(int mode=0;mode<3;++mode)for(bool first:{false,true}){
   H h;h.text.set_text("éTAIL");h.text.set_caret(2);
-  for(int i=0;i<mode;++i){h.frame(R);h.frame(0);}
+  if(mode){h.frame(R);if(mode==2)for(int i=0;i<48;++i)h.frame(R);h.frame(0);}
   const auto& variants=mode?row.upper:row.low;
   auto expect=[&](const char* letter){h.expect((std::string("é")+letter+"TAIL").c_str());assert(h.text.caret_byte()==2+std::strlen(letter));};
   if(first)h.frame(SELECT);
@@ -60,7 +60,7 @@ template<class H> void accent_matrix(){
  }
  // Simultaneous Select + full letter chord retains the Select-first path.
  for(const auto& row:accent_rows)for(int mode=0;mode<3;++mode){
-  H h;for(int i=0;i<mode;++i){h.frame(R);h.frame(0);}
+  H h;if(mode){h.frame(R);if(mode==2)for(int i=0;i<48;++i)h.frame(R);h.frame(0);}
   h.frame(row.group|row.button|SELECT);h.frame(0);
   h.expect((mode?row.upper:row.low)[0]);
  }
@@ -73,7 +73,7 @@ template<class H> void accent_matrix(){
  }
  // g/v keep their existing two-R replacement and case; neither has accents.
  for(unsigned layer:{0u,64u})for(int mode=0;mode<3;++mode){
-  H h;for(int i=0;i<mode;++i){h.frame(R);h.frame(0);}
+  H h;if(mode){h.frame(R);if(mode==2)for(int i=0;i<48;++i)h.frame(R);h.frame(0);}
   h.frame(layer|2|R);h.frame(layer|2);h.frame(layer|2|R);
   const char* expected=layer?(mode?"V":"v"):(mode?"G":"g");h.expect(expected);
   h.frame(layer|2|R|SELECT);h.expect(expected);h.frame(START|SELECT);h.frame(0);h.expect(expected);
@@ -89,7 +89,7 @@ template<class H> void accent_matrix(){
  // Capacity rejection at the real model boundary cannot target previous text.
  for(int mode=0;mode<3;++mode){
   H h;std::string full(writer::TEXT_CAPACITY,'x');h.text.set_text(full.c_str());
-  for(int i=0;i<mode;++i){h.frame(R);h.frame(0);}
+  if(mode){h.frame(R);if(mode==2)for(int i=0;i<48;++i)h.frame(R);h.frame(0);}
   h.frame(1|32);h.frame(1|32|SELECT);h.frame(1|SELECT);h.frame(1|32|SELECT);
   h.frame(START|SELECT);h.frame(0);h.expect(full.c_str());assert(!h.text.dirty());
   h.text.set_text("");h.frame(1|32);h.frame(0);h.expect(mode?"A":"a");
@@ -104,7 +104,7 @@ template<class H> void accent_matrix(){
  for(unsigned g=0;g<8;++g)for(unsigned b=0;b<3;++b){char base=letters[g][b];
   if(std::strchr("aceinosuyz",base))continue;
   for(int mode=0;mode<3;++mode)for(bool first:{false,true}){
-   H h;for(int i=0;i<mode;++i){h.frame(R);h.frame(0);}
+   H h;if(mode){h.frame(R);if(mode==2)for(int i=0;i<48;++i)h.frame(R);h.frame(0);}
    if(first)h.frame(SELECT);
    h.frame(groups[g]|buttons[b]|(first?SELECT:0));
    h.frame(groups[g]|buttons[b]|SELECT);h.frame(0);

@@ -78,7 +78,12 @@ int main() {
   // Isolated R commits on release, which must redraw the indicator.
   a.frame(key(Button::R));a.take_redraw();a.frame(0);
   assert(a.shift() && a.take_redraw());
-  tap(Button::R);assert(a.caps());
+  tap(Button::R);assert(!a.shift()&&!a.caps());
+  a.frame(key(Button::R));
+  for(int i=1;i<48;++i)a.frame(key(Button::R));
+  a.take_redraw();a.frame(key(Button::R));
+  assert(a.caps()&&!a.shift()&&a.take_redraw());
+  a.frame(0);
   storage.fault_at(1);a.frame(key(Button::START)|key(Button::B));a.frame(0);
   tap(Button::A);assert(a.scene()==Scene::EDITOR && a.caps());
   storage.fault_at(-1);

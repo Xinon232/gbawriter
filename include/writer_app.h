@@ -32,7 +32,7 @@ public:
     _redraw = false;
     return r;
   }
-  static constexpr int HELP_PAGES = 19;
+  static constexpr int HELP_PAGES = 20;
 
 private:
   Storage &_storage;

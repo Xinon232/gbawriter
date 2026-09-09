@@ -22,7 +22,10 @@ static void groups(){
   }
   s.update(key(Button::UP)|key(Button::LEFT),ignore,nullptr);assert(!group(s,0)[0]);s.update(0,ignore,nullptr);
   s.update(key(Button::START)|key(Button::UP),ignore,nullptr);assert(!group(s,0)[0]);s.update(0,ignore,nullptr);
-  s.update(key(Button::R),ignore,nullptr);s.update(0,ignore,nullptr);
+  if(mode==1){s.update(key(Button::R),ignore,nullptr);s.update(0,ignore,nullptr);}
+  s.update(key(Button::R),ignore,nullptr);
+  if(mode==1)for(int i=0;i<48;++i)s.update(key(Button::R),ignore,nullptr);
+  s.update(0,ignore,nullptr);
  }
  std::cout<<"PASS: all normal/L active groups, case, release, diagonals and navigation\n";
 }

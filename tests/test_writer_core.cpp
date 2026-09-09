@@ -5,6 +5,10 @@
 #include <string>
 using namespace writer;
 
+static void hold_caps(InputState& s) {
+  for(int i=0;i<=48;++i)s.update(1u<<unsigned(Button::R),[](void*,InputEvent){},nullptr);
+  s.update(0,[](void*,InputEvent){},nullptr);
+}
 static void dates() {
   Date d{};
   assert(parse_diary_name("29022028.TXT", d));
@@ -43,16 +47,16 @@ static void input() {
   e = s.press(Button::R, true);
   assert(!std::strcmp(e.text, "g"));
   s.release(Button::DOWN);
-  s.press(Button::R, true);
+  s.release(Button::B);s.release(Button::R);
+  s.press(Button::R, true);s.release(Button::R);
   assert(s.shift_armed());
   s.press(Button::RIGHT, true);
   e = s.press(Button::A, true);
   assert(!std::strcmp(e.text, "E"));
-  s.release(Button::RIGHT);
-  s.press(Button::R, true);
-  s.press(Button::R, true);
+  s.release(Button::RIGHT);s.release(Button::A);
+  hold_caps(s);
   assert(s.caps());
-  s.press(Button::R, true);
+  s.press(Button::R, true);s.release(Button::R);
   assert(!s.caps() && !s.shift_armed());
   s.press(Button::SELECT, true);
   e = s.press(Button::RIGHT, true);
@@ -150,10 +154,7 @@ static void international() {
   s.release(Button::RIGHT);
   s.release(Button::SELECT);
   assert(!s.shift_armed());
-  s.press(Button::R, true);
-  s.release(Button::R);
-  s.press(Button::R, true);
-  s.release(Button::R);
+  hold_caps(s);
   s.press(Button::L, true);
   s.press(Button::RIGHT, true);
   assert(!std::strcmp(s.press(Button::R, true).text, "S"));
@@ -173,10 +174,7 @@ static void session_boundaries() {
   v.press(Button::L, true);
   assert(!std::strcmp(v.press(Button::R, true).text, "w"));
   InputState caps;
-  caps.press(Button::R, true);
-  caps.release(Button::R);
-  caps.press(Button::R, true);
-  caps.release(Button::R);
+  hold_caps(caps);
   caps.press(Button::DOWN, true);
   caps.press(Button::R, true);
   caps.release(Button::R);

@@ -1,3 +1,15 @@
+# gbawriter v1.1 — final release (prepared locally)
+
+- Short isolated R release arms Shift from normal case. An uninterrupted R-only hold enables Caps at 48 frames, twice the initial A repeat delay, while held.
+- Any companion before the threshold cancels eligibility until R is released and freshly pressed alone. Shift/Caps clears on the next isolated R release, short or long; that hold cannot rearm.
+- R-containing letters, repeated g/v, both Select accent orders, START navigation, whole-word wrapping and persistence are retained. No index or save-validation changes.
+- Complete in-app Controls and PDF updated; author Halim Jarrar retained. Physical hardware and SD power-loss safety remain unverified.
+- Fixed R-API-1: public press/release events now synchronize frame edges, preserving canceled R sessions and the 48-elapsed-frame boundary when mixing APIs. Caps timing requires an actually isolated R snapshot. User controls and PDFs are unchanged by this follow-up.
+- Rebuilt `gbawriter.gba` SHA256: `dacbff8365fe4ec5db5785de9805e09f9b34396ee9855e4d9867be6e04d83b81`. Current frozen artifacts and verification: `input-fix-handoff.md` / `input-fix-freeze.json` in the suite v1.1 evidence directory; these supersede the earlier input handoff binaries.
+- Prepared locally for parent review; not committed, pushed or published. Historical hashes below are unchanged.
+
+## Historical v1.0.0 notes
+
 # gbawriter v1.0.0 — hardware-unverified prerelease
 
 Create and edit TXT files on your Game Boy Advance.

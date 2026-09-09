@@ -55,6 +55,7 @@ static void editor_positions(){
       app.frame(0);compare(true,"",mode==1?"Shift":mode==2?"Caps":"");
     }
     tap(key(Button::R));
+    if(mode==1){for(int i=0;i<=48;++i)app.frame(key(Button::R));app.frame(0);}
   }
   // Saving feedback occupies only the file slot; the two indicators survive.
   tap(key(Button::R));tap(key(Button::START)|key(Button::A));app.frame(key(Button::UP));

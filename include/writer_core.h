@@ -79,7 +79,10 @@ class InputState {
 public:
   InputState();
   static constexpr int NAV_REPEAT_DELAY=24, NAV_REPEAT_INTERVAL=5;
+  static constexpr int CAPS_HOLD_DELAY=2*NAV_REPEAT_DELAY;
   using Consumer=void(*)(void*,InputEvent);
+  // Events and snapshots share held-session edges. A fresh press is time zero;
+  // each subsequent update advances one elapsed frame (events do not tick).
   void update(uint16_t held,Consumer consume,void* context);
   InputEvent press(Button button, bool just_pressed);
   InputEvent release(Button button);
@@ -101,6 +104,7 @@ private:
   uint16_t _held;
   uint16_t _previous=0;
   bool _r_pending=false,_group_upper=false,_rejected=false;
+  int _r_frames=0;
   uint16_t _repeat_keys=0;
   int _repeat_frames=0;
   bool _shift, _caps, _start_used, _select;

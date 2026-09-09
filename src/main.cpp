@@ -39,7 +39,8 @@ const char* const help[writer::Application::HELP_PAGES][6]={
  {"NORMAL LETTERS","D-pad holds a letter group","B = first  A = second  R = third","UP: ABC    RIGHT: DEF","DOWN: HIJ  LEFT: KLM","Release group for next session"},
  {"HOLD L: SECOND LAYER","L is held, never a toggle","B = first  A = second  R = third","L+UP: NOP   L+RIGHT: QRS","L+DOWN: TUW L+LEFT: XYZ","R in a group is a letter"},
  {"SPECIAL LETTERS / BASIC EDIT","Keep DOWN held: R,R = g","Keep L+DOWN held: R,R = v","Release between R presses: jj/ww","A alone: space  B: backspace","START release alone: newline"},
- {"SHIFT / CAPS","R cycle: normal, Shift, CAPS","One isolated tap per step","No timing window","Shift: next alphabetic letter","Digits/signs do not use Shift"},
+ {"SHIFT / CAPS","Normal: press R alone","Short R release: Shift","R alone 48 frames: Caps","About 0.8 seconds; while held","Shift/Caps: R release clears"},
+ {"R HOLD / CHORDS","Other key cancels this hold","Release R; fresh solo hold","Clearing hold cannot rearm","Shift: next accepted letter","Digits/signs do not use Shift"},
  {"START: NAVIGATE","Hold START + LEFT/RIGHT","Move one UTF-8 character","START+UP/DOWN: visual rows","START+L/R: previous/next page","Navigation never types letters"},
  {"START: SAVE","START+A: save this file","START+B: save, then main menu","Save failure keeps your text","Release START after command:","No accidental newline"},
  {"SELECT: ONE LIVE CHARACTER","SELECT alone: inserts . now","Hold SELECT to replace it","Release SELECT to commit one","UP: 1 2 3 4 5 6 7 8 9 0","DOWN: 0 9 8 7 6 5 4 3 2 1"},
@@ -58,7 +59,7 @@ void render(bn::palette_bitmap_bg_painter& painter,bn::sprite_text_generator& ui
  using writer::Scene;
  switch(app.scene()){
  case Scene::MENU:
-  title(ui,sprites,"gbawriter V1.0");ui_line(ui,sprites,70,28,"files: /gbawriter");ui.set_center_alignment();ui.generate(0,-22,app.menu_selection()==0?"> NEW FILE":"  NEW FILE",sprites);ui.generate(0,2,app.menu_selection()==1?"> LOAD FILE":"  LOAD FILE",sprites);
+  title(ui,sprites,"gbawriter V1.1");ui_line(ui,sprites,70,28,"files: /gbawriter");ui.set_center_alignment();ui.generate(0,-22,app.menu_selection()==0?"> NEW FILE":"  NEW FILE",sprites);ui.generate(0,2,app.menu_selection()==1?"> LOAD FILE":"  LOAD FILE",sprites);
   ui_line(ui,sprites,16,140,"Select: Controls");ui_line(ui,sprites,128,140,"Start: Credits");break;
  case Scene::DATE:{
   title(ui,sprites,"NEW FILE");auto d=app.date();

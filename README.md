@@ -1,10 +1,10 @@
-# gbawriter — v1.0.0
+# gbawriter — v1.1
 
 Create and edit TXT files on your Game Boy Advance. Save your writing directly to the SD card, or open an existing text file to keep working. Put your TXT files in `/gbawriter` at the root of the SD card. Requires a compatible Supercard SD.
 
 Based on [GBAReader v0.5.0](https://github.com/Xinon232/gbareader), using Butano menus, the SuperFW bitmap text renderer and fonts, and Supercard SD/FatFS storage. There is no QWERTY keyboard, network service, or AI component.
 
-> **Hardware-unverified prerelease.** Host tests and software filesystem fault injection pass; these are **not proof that saving is safe on a real GBA + Supercard SD**. Use disposable documents and a backed-up SD card until the hardware checklist below is completed. Do not entrust the only copy of a diary to this release. This version is a prerelease pending physical-hardware verification.
+> **Physical hardware remains unverified.** Host tests and software filesystem fault injection pass; these are **not proof that saving is safe on a real GBA + Supercard SD**. Use disposable documents and a backed-up SD card until the hardware checklist below is completed. Do not entrust the only copy of a diary to this release. v1.1 is prepared as a final release; this does not certify physical-hardware safety.
 
 ## Hardware and installation
 
@@ -28,7 +28,7 @@ If no dated documents exist, the manual starting date is **10 July 2026**. This 
 
 Main-menu **SELECT** opens controls and **START** opens credits; **B** returns from either. The adjacent bottom hints read exactly `Select: Controls` and `Start: Credits`. Credits show `Made by Halim Jarrar`, `(C) 2026`, `halim-jarrar.de`, and `monday@halim-jarrar.de`.
 
-The suite home screen reads `gbawriter V1.0` and `files: /gbawriter`, with NEW FILE first/default and LOAD FILE second. The UI label is independent of the release tag.
+The suite home screen reads `gbawriter V1.1` and `files: /gbawriter`, with NEW FILE first/default and LOAD FILE second. The UI label is independent of the release tag.
 
 Menu interface text, help section headings and navigation hints use the existing blue UI font. Numeric date values, text filenames, saving indications, controls body text and credits content retain the SuperFW-based writing font. Editor typography and status positions are unchanged.
 
@@ -53,9 +53,11 @@ Hold a direction, then press **B / A / R** to choose its **first / second / thir
 
 ### Shift and Caps
 
-Isolated **R presses and releases** cycle **normal → Shift → Caps → normal**, repeating with **no timing window**. Shift applies to the next successfully inserted alphabetic character; digits, spaces and punctuation do not consume it. A second isolated tap enables Caps, regardless of the delay.
+From normal case, **release a short isolated R press to arm one-shot Shift**. Hold **R alone continuously for 48 frames** (twice the initial A-repeat delay; about 0.8 seconds at 60 Hz) to enable **Caps while still held**, once per hold. Any other button before the threshold cancels that hold; releasing the companion cannot restart it. Release R and start a fresh solo hold.
 
-**With Caps on, one isolated R press/release turns Caps off without arming Shift.** This is an approved deliberate difference from the original design's inverse-Shift behavior. R inside a direction group remains the third-letter key and cannot toggle Caps. Shift/Caps applies to the international letters below; `ß` stays `ß`, never two letters. Rejected capacity-limited edits do not consume Shift. A failed save preserves Shift/Caps as well as the document.
+With **Shift or Caps already active**, another isolated R press—short or long—**clears the mode on release**. It cannot arm Shift or Caps again during the same hold. Shift applies to the next successfully inserted alphabetic character; digits, spaces and punctuation do not consume it.
+
+**With Caps on, one isolated R press/release turns Caps off without arming Shift.** R inside a direction group remains the third-letter key and cannot toggle Caps. Shift/Caps applies to the international letters below; `ß` stays `ß`, never two letters. Rejected capacity-limited edits do not consume Shift. A failed save preserves Shift/Caps as well as the document.
 
 The bottom status bar reads **filename → active letter group → Shift/Caps**. The filename starts at x=8 (128-pixel slot), the group at x=144 (32-pixel slot), and Shift/Caps at x=184 (48-pixel slot): hold Up to see `abc`, or `ABC` with Shift/Caps; all normal and held-L groups follow the same rule. Release the direction to clear it; diagonals and START navigation show no letter group. `*` marks unsaved changes. Transient messages occupy only the filename slot, leaving capitalization and group visible.
 
@@ -110,7 +112,7 @@ While SELECT and the same group remain held, **release and press the final B/A/R
 | Y | ý ÿ | Ý Ÿ |
 | Z | ž ź ż | Ž Ź Ż |
 
-N/S/U/Y/Z use the held L layer. Cycles wrap back to the first alternate. All 77 distinct required lowercase/uppercase glyphs are verified against the real font packs and renderer, including even/odd pixel addressing. Main-menu **SELECT** opens 19 control pages; Left/Right changes page; B returns. Help strings are checked for glyph coverage and screen width.
+N/S/U/Y/Z use the held L layer. Cycles wrap back to the first alternate. All 77 distinct required lowercase/uppercase glyphs are verified against the real font packs and renderer, including even/odd pixel addressing. Main-menu **SELECT** opens 20 control pages; Left/Right changes page; B returns. Help strings are checked for glyph coverage and screen width.
 
 ## Text, memory and limits
 
