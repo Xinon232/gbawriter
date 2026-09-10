@@ -36,9 +36,9 @@ const char* const help[writer::Application::HELP_PAGES][6]={
  {"ABOUT / FILES","Create and edit TXT files.","Save directly to SD.","Put TXT files in SD root folder:","/gbawriter","Supercard SD required"},
  {"MENUS / FILES","UP/DOWN: select  A: open","NEW FILE: choose date, A: create","LOAD FILE: choose TXT, A: open","B: back  Error message: A: OK","Menu SELECT: help START: credits"},
  {"REPEAT / SAVE SAFETY","Hold A/B alone: repeat edit","Hold START navigation: repeat","Adding a key cancels edit repeat","No autosave or discard shortcut","Do not power off while saving"},
- {"NORMAL LETTERS","D-pad holds a letter group","B = first  A = second  R = third","UP: ABC    RIGHT: DEF","DOWN: HIJ  LEFT: KLM","Release group for next session"},
- {"HOLD L: SECOND LAYER","L is held, never a toggle","B = first  A = second  R = third","L+UP: NOP   L+RIGHT: QRS","L+DOWN: TUW L+LEFT: XYZ","R in a group is a letter"},
- {"SPECIAL LETTERS / BASIC EDIT","Keep DOWN held: R,R = g","Keep L+DOWN held: R,R = v","Release between R presses: jj/ww","A alone: space  B: backspace","START release alone: newline"},
+ {"NORMAL LETTERS","D-pad holds a letter group","B = first  A = second  R = third","UP: ABC    RIGHT: HIJ","DOWN: NOP  LEFT: TUW","Release group for next session"},
+ {"HOLD L: SECOND LAYER","L is held, never a toggle","B = first  A = second  R = third","L+UP: DEF   L+RIGHT: KLM","L+DOWN: QRS L+LEFT: XYZ","R in a group is a letter"},
+ {"SPECIAL LETTERS / BASIC EDIT","Keep RIGHT held: R,R = g","Keep LEFT held: R,R = v","Release between R presses: jj/ww","A alone: space  B: backspace","START release alone: newline"},
  {"SHIFT / CAPS","Normal: press R alone","Short R release: Shift","R alone 48 frames: Caps","About 0.8 seconds; while held","Shift/Caps: R release clears"},
  {"R HOLD / CHORDS","Other key cancels this hold","Release R; fresh solo hold","Clearing hold cannot rearm","Shift: next accepted letter","Digits/signs do not use Shift"},
  {"START: NAVIGATE","Hold START + LEFT/RIGHT","Move one UTF-8 character","START+UP/DOWN: visual rows","START+L/R: previous/next page","Navigation never types letters"},
@@ -51,7 +51,7 @@ const char* const help[writer::Application::HELP_PAGES][6]={
  {"ACCENTS: EITHER ORDER","Hold SELECT, then type a chord","Or type a letter; keep held:","Exact direction, L if used,","and its producing B/A/R button","Then press SELECT: same letter"},
  {"HELD LETTER: SELECT SECOND","First accent; keeps its case","No extra period or letter","No time limit; no extra keys","Release/change chord: ineligible","No variants? Letter unchanged"},
  {"INTERNATIONAL CYCLING","Keep SELECT + group held","Release/repress final B/A/R","E chord: é è ë ê, then é","Release SELECT to keep result","ß stays ß, even with CAPS"},
- {"ACCENT EXAMPLE / STATUS","RIGHT+A held, then SELECT: é","START+SELECT: bar / full screen","Cancels new provisional only","Converted existing letter stays","Release both to end status chord"},
+ {"ACCENT EXAMPLE / STATUS","L+UP+A held, then SELECT: é","START+SELECT: bar / full screen","Cancels new provisional only","Converted existing letter stays","Release both to end status chord"},
  {"STATUS BAR / DATE","Bottom: file, group, Shift/Caps","Date UP/DOWN: choose field","Date LEFT/RIGHT: change value","Date A: create  B: back","No autosave or discard shortcut"}
 };
 void render(bn::palette_bitmap_bg_painter& painter,bn::sprite_text_generator& ui,Sprites& sprites){
@@ -59,7 +59,7 @@ void render(bn::palette_bitmap_bg_painter& painter,bn::sprite_text_generator& ui
  using writer::Scene;
  switch(app.scene()){
  case Scene::MENU:
-  title(ui,sprites,"gbawriter V1.1");ui_line(ui,sprites,70,28,"files: /gbawriter");ui.set_center_alignment();ui.generate(0,-22,app.menu_selection()==0?"> NEW FILE":"  NEW FILE",sprites);ui.generate(0,2,app.menu_selection()==1?"> LOAD FILE":"  LOAD FILE",sprites);
+  title(ui,sprites,"gbawriter V1.2");ui_line(ui,sprites,70,28,"files: /gbawriter");ui.set_center_alignment();ui.generate(0,-22,app.menu_selection()==0?"> NEW FILE":"  NEW FILE",sprites);ui.generate(0,2,app.menu_selection()==1?"> LOAD FILE":"  LOAD FILE",sprites);
   ui_line(ui,sprites,16,140,"Select: Controls");ui_line(ui,sprites,128,140,"Start: Credits");break;
  case Scene::DATE:{
   title(ui,sprites,"NEW FILE");auto d=app.date();
@@ -77,10 +77,19 @@ void render(bn::palette_bitmap_bg_painter& painter,bn::sprite_text_generator& ui
   ui_line(ui,sprites,8,24,help[app.help_page()][0]);
   for(int row=1;row<6;++row){line(px,8,24+row*18,help[app.help_page()][row]);}ui_line(ui,sprites,8,138,"Left/Right: Page  B: Back");break;
  case Scene::CREDITS:
+  if(app.credits_page()==0){
   title(ui,sprites,"CREDITS");
   line(px,8,38,"Made by Halim Jarrar");line(px,8,60,"(C) 2026");
   line(px,8,82,"halim-jarrar.de");line(px,8,104,"monday@halim-jarrar.de");
-  ui_line(ui,sprites,8,138,"B: Back");break;
+  }else{
+   title(ui,sprites,"SUPERFW / FONTS");
+   line(px,8,38,"SuperFW software font renderer");
+   line(px,8,56,"UNSCII fonts: viznut.fi/unscii");
+   line(px,8,74,"UNSCII source: GPL license");
+   line(px,8,92,"Unifont-derived Hangul blocks");
+   line(px,8,110,"Font notices kept in source");
+  }
+  ui_line(ui,sprites,8,138,"Left/Right: Page  B: Back");break;
  case Scene::ERROR:
   title(ui,sprites,"PLEASE NOTE");ui_line(ui,sprites,8,42,app.message());
   if(!std::strcmp(app.message(),"FILE ALREADY EXISTS")){char name[13];writer::format_diary_name(app.date(),name);line(px,48,64,name);ui_line(ui,sprites,20,88,"CHOOSE ANOTHER DATE");}

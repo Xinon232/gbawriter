@@ -61,12 +61,22 @@ int main(int argc,char** argv){
  Application app(storage,[](const char*){return 6;}); app.boot();
  auto tap=[&](Button b){app.frame(1u<<unsigned(b));app.frame(0);};
  auto draw=[&](){draws.clear();render(app,storage);};
- draw(); check("gbawriter V1.1",true);check("files: /gbawriter",true);check("> NEW FILE",true);check("  LOAD FILE",true);check("Select: Controls",true);check("Start: Credits",true);only_ui();
+ draw(); check("gbawriter V1.2",true);check("files: /gbawriter",true);check("> NEW FILE",true);check("  LOAD FILE",true);check("Select: Controls",true);check("Start: Credits",true);only_ui();
  Draw select{},start{};for(auto& d:draws){if(d.text=="Select: Controls")select=d;if(d.text=="Start: Credits")start=d;}
  assert(select.y==start.y && select.y>=136 && select.x<start.x);
  tap(Button::START);draw();
  for(auto s:{"Made by Halim Jarrar","(C) 2026","halim-jarrar.de","monday@halim-jarrar.de"})check(s,false);
- check("B: Back",true);tap(Button::B);tap(Button::SELECT);
+ const char* personal[]={"Made by Halim Jarrar","(C) 2026","halim-jarrar.de","monday@halim-jarrar.de"};
+ int personal_index=0;for(auto& d:draws)if(!d.ui){assert(personal_index<4);assert(d.text==personal[personal_index++]);}
+ assert(personal_index==4);
+ tap(Button::RIGHT);draw();
+ for(auto s:{"SuperFW software font renderer","UNSCII fonts: viznut.fi/unscii","UNSCII source: GPL license","Unifont-derived Hangul blocks","Font notices kept in source"})check(s,false);
+ check("Left/Right: Page  B: Back",true);
+ tap(Button::LEFT);draw();for(auto s:personal)check(s,false);
+ tap(Button::LEFT);draw();check("SuperFW software font renderer",false);
+ tap(Button::B);assert(app.scene()==Scene::MENU);
+ tap(Button::START);draw();for(auto s:personal)check(s,false); // reopening resets first page
+ tap(Button::B);tap(Button::SELECT);
  assert(std::string(help[0][1])=="Create and edit TXT files.");
  assert(std::string(help[0][2])=="Save directly to SD.");
  assert(std::string(help[0][3])=="Put TXT files in SD root folder:");

@@ -29,8 +29,8 @@ static void editor_positions(){
   app.text().set_text("a\na\na\na\na\na\na\na\na\na");
   app.layout().reflow(app.text(),220,glyph_width);app.text().move_home();
   const Button dirs[]={Button::UP,Button::RIGHT,Button::DOWN,Button::LEFT};
-  const char* lower[]={"abc","def","hij","klm","nop","qrs","tuw","xyz"};
-  const char* upper[]={"ABC","DEF","HIJ","KLM","NOP","QRS","TUW","XYZ"};
+  const char* lower[]={"abc","hij","nop","tuw","def","klm","qrs","xyz"};
+  const char* upper[]={"ABC","HIJ","NOP","TUW","DEF","KLM","QRS","XYZ"};
   alignas(2) uint8_t actual[240*160],expected[240*160];
   auto compare=[&](bool bar,const char* group,const char* mode){
     std::memset(actual,0,sizeof(actual));std::memset(expected,0,sizeof(expected));
@@ -140,8 +140,8 @@ int main(int argc, char **argv) {
   font_base_addr = load(argv[1]);
   reader_font_base_addr = load(argv[2]);
   editor_positions();
-  for(const char* label:{"abc","def","hij","klm","nop","qrs","tuw","xyz",
-                         "ABC","DEF","HIJ","KLM","NOP","QRS","TUW","XYZ",
+  for(const char* label:{"abc","hij","nop","tuw","def","klm","qrs","xyz",
+                         "ABC","HIJ","NOP","TUW","DEF","KLM","QRS","XYZ",
                          "Shift","Caps","UP/DOWN: FIELD  LEFT/RIGHT: +/-"}){
     unsigned limit=std::strlen(label)==3?32:std::strlen(label)<=5?48:224;
     unsigned width=font_width(label);assert(width<=limit);

@@ -1,3 +1,16 @@
+# gbawriter V1.2 — input-layout prerelease candidate
+
+- Based on the verified GitHub v1.1.0 release, on a separate release branch; not published yet.
+- Exact original groups relocated: Up abc, L+Up def; Right hij, L+Right klm; Down nop, L+Down qrs; Left tuw, L+Left xyz. B/A/R remains first/second/third.
+- Hold unmodified Right and press R twice for j → g; hold unmodified Left and press R twice for w → v. Continuous-group sessions, not timing. Release the direction between presses for jj/ww; g/v have no accents.
+- All accent families follow their base letters, in unchanged cycling order. Select-before and Select-after a continuously held letter chord retain case, replacement and host acceptance/cancellation behavior.
+- Home title is `gbawriter V1.2`; active-group displays, all 20 in-app Controls pages and the complete instructional PDF match the new layout. Author: Halim Jarrar, before third-party font attribution.
+- Added the explicitly requested second Credits page for SuperFW, UNSCII and Unifont-derived Hangul, with Left/Right paging. The first page preserves only the existing Halim Jarrar personal block and always opens first. PDF credits and navigation match.
+- All other controls, Shift/Caps timing, persistence, fonts and UI positions remain unchanged. Physical hardware has not been tested.
+- This candidate stops before independent review, commit/push and publication. Current artifact hashes and actual verification results are in the parent handoff, not the historical notes below.
+
+## Historical v1.1 notes (unchanged)
+
 # gbawriter v1.1 — final release (prepared locally)
 
 - Short isolated R release arms Shift from normal case. An uninterrupted R-only hold enables Caps at 48 frames, twice the initial A repeat delay, while held.

@@ -69,7 +69,7 @@ int main(){
  InputState s;Sink out;
  auto frame=[&](unsigned held){s.update(held,consume,&out);};
  frame(bit(Button::START)|bit(Button::A));assert(out.text.empty());assert(out.events.back()==EventKind::SAVE);frame(0);assert(out.text.empty());
- frame(bit(Button::L)|bit(Button::UP)|bit(Button::B));assert(out.text=="n");frame(0);
+ frame(bit(Button::L)|bit(Button::UP)|bit(Button::B));assert(out.text=="d");frame(0);
  frame(bit(Button::R));assert(!s.shift_armed());frame(0);assert(s.shift_armed());
  for(int i=0;i<40;++i)frame(0);
  frame(bit(Button::R));frame(0);assert(!s.caps()&&!s.shift_armed());
@@ -82,8 +82,8 @@ int main(){
   for(int i=0;i<=48;++i){frame(bit(Button::R));}frame(0);assert(s.caps()&&!s.shift_armed());
   frame(bit(Button::R));frame(0);assert(!s.caps()&&!s.shift_armed());
  }
- frame(bit(Button::R));frame(0);frame(bit(Button::DOWN)|bit(Button::R));frame(bit(Button::DOWN));frame(bit(Button::DOWN)|bit(Button::R));assert(out.text=="nG");frame(0);
- frame(bit(Button::UP)|bit(Button::LEFT)|bit(Button::A));assert(out.text=="nG");frame(0); // diagonals never type or space
+ frame(bit(Button::R));frame(0);frame(bit(Button::RIGHT)|bit(Button::R));frame(bit(Button::RIGHT));frame(bit(Button::RIGHT)|bit(Button::R));assert(out.text=="dG");frame(0);
+ frame(bit(Button::UP)|bit(Button::LEFT)|bit(Button::A));assert(out.text=="dG");frame(0); // diagonals never type or space
  frame(bit(Button::R));frame(bit(Button::R)|bit(Button::UP));frame(0);assert(!s.shift_armed());
  std::cout<<"PASS: input whole-frame precedence, isolated releases, isolated R short/hold sessions\n";
 }

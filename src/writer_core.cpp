@@ -63,8 +63,8 @@ int compare(Date a, Date b) {
   return a.day - b.day;
 }
 const char *normal(char d, bool layer, int n) {
-  static const char *l0[4] = {"abc", "def", "hij", "klm"};
-  static const char *l1[4] = {"nop", "qrs", "tuw", "xyz"};
+  static const char *l0[4] = {"abc", "hij", "nop", "tuw"};
+  static const char *l1[4] = {"def", "klm", "qrs", "xyz"};
   int i = d == 'U' ? 0 : d == 'R' ? 1 : d == 'D' ? 2 : d == 'L' ? 3 : -1;
   return i < 0 ? nullptr : (layer ? l1[i] : l0[i]) + n;
 }
@@ -280,7 +280,7 @@ const char* InputState::active_group() const {
   char dir=held(Button::UP)?'U':held(Button::RIGHT)?'R':held(Button::DOWN)?'D':'L';
   const char* lower=normal(dir,held(Button::L),0);
   if(!(_shift||_caps))return lower;
-  static const char* upper[]={"ABC","DEF","HIJ","KLM","NOP","QRS","TUW","XYZ"};
+  static const char* upper[]={"ABC","HIJ","NOP","TUW","DEF","KLM","QRS","XYZ"};
   int index=dir=='U'?0:dir=='R'?1:dir=='D'?2:3;
   return upper[index+(held(Button::L)?4:0)];
 }
@@ -399,16 +399,16 @@ InputEvent InputState::press(Button b, bool fresh) {
     const uint16_t letter_keys = directions | (layer ? (1u << unsigned(Button::L)) : 0) |
                                  (1u << unsigned(b));
     const uint16_t eligible_keys = _held == letter_keys ? letter_keys : 0;
-    if (!_select && b == Button::R && dir == 'D') {
+    if (!_select && b == Button::R && !layer && (dir == 'R' || dir == 'L')) {
       if(!_group_r_count)_group_upper=_caps||_shift;
       ++_group_r_count;
       if (_group_r_count == 2) {
         _group_r_count = 0;
         _letter_keys = eligible_keys;
-        _letter_base = layer ? 'v' : 'g';
+        _letter_base = dir == 'L' ? 'v' : 'g';
         _letter_upper = _group_upper;
         return {EventKind::REPLACE,
-                (_group_upper ? (layer?"V":"G") : (layer?"v":"g"))};
+                (_group_upper ? (dir == 'L'?"V":"G") : (dir == 'L'?"v":"g"))};
       }
     }
     if (!_select) {

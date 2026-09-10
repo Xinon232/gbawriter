@@ -15,7 +15,7 @@ assert 'HELP_PAGES = 20' in app
 assert 'quickly' not in main
 for path in ['README.md','RELEASE_NOTES.md']:
     text=(root/path).read_text()
-    assert 'v1.1' in text and 'hardware' in text
+    assert 'V1.2' in text and 'hardware' in text
     assert 'whole-word' in text and 'Start: Credits' in text
     assert 'START+SELECT' in text and '48 frames' in text
     assert 'filename → active letter group → Shift/Caps' in text

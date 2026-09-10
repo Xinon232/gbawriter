@@ -15,6 +15,7 @@ public:
   int date_field() const { return _field; }
   int selected_file() const { return _file; }
   int help_page() const { return _help; }
+  int credits_page() const { return _credits; }
   TextModel &text() { return _text; }
   Layout &layout() { return _layout; }
   const char *message() const { return _message; }
@@ -33,6 +34,7 @@ public:
     return r;
   }
   static constexpr int HELP_PAGES = 20;
+  static constexpr int CREDITS_PAGES = 2;
 
 private:
   Storage &_storage;
@@ -42,7 +44,7 @@ private:
   InputState _input;
   CaretClock _clock;
   Scene _scene = Scene::MENU, _return = Scene::MENU;
-  int _menu = 0, _field = 0, _file = 0, _help = 0, _viewport = 0,
+  int _menu = 0, _field = 0, _file = 0, _help = 0, _credits = 0, _viewport = 0,
       _message_frames = 0;
   Date _date{10, 7, 2026};
   uint16_t _previous = 0;

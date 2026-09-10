@@ -208,6 +208,7 @@ void Application::frame(uint16_t held) {
       _help = 0;
       change(Scene::HELP);
     } else if (p(Button::START)) {
+      _credits = 0;
       change(Scene::CREDITS);
     } else if (p(Button::A)) {
       auto r = _ready ? _storage.scan() : _storage.init();
@@ -305,6 +306,10 @@ void Application::frame(uint16_t held) {
       change(Scene::MENU);
     break;
   case Scene::CREDITS:
+    if (p(Button::LEFT))
+      _credits = (_credits + CREDITS_PAGES - 1) % CREDITS_PAGES;
+    if (p(Button::RIGHT))
+      _credits = (_credits + 1) % CREDITS_PAGES;
     if (p(Button::B))
       change(Scene::MENU);
     break;

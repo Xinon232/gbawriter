@@ -35,10 +35,10 @@ struct Harness {
 int main(){
  accent_matrix<Harness>();
  Harness h;h.frame(U|B);h.expect("a");h.frame(U|B|S);h.expect("á");h.frame(0);h.expect("á");
- constexpr unsigned D=key(Button::DOWN),R=key(Button::R),L=key(Button::L);
- for(unsigned layer:{0u,L}){
-  Harness special;special.frame(layer|D|R);special.frame(layer|D);special.frame(layer|D|R);
-  special.expect(layer?"v":"g");special.frame(layer|D|R|S);special.expect(layer?"v":"g");
+ constexpr unsigned R=key(Button::R);
+ for(unsigned group:{key(Button::RIGHT),key(Button::LEFT)}){
+  Harness special;special.frame(group|R);special.frame(group);special.frame(group|R);
+  special.expect(group==key(Button::LEFT)?"v":"g");special.frame(group|R|S);special.expect(group==key(Button::LEFT)?"v":"g");
  }
  Harness ambiguous;ambiguous.frame(U|B|key(Button::A));ambiguous.expect("ab");
  ambiguous.frame(U|B|key(Button::A)|S);ambiguous.expect("ab.");

@@ -42,24 +42,26 @@ static void input() {
   e = s.press(Button::B, true);
   assert(e.kind == EventKind::INSERT && !std::strcmp(e.text, "a"));
   s.release(Button::UP);
-  s.press(Button::DOWN, true);
+  s.press(Button::RIGHT, true);
   s.press(Button::R, true);
   e = s.press(Button::R, true);
   assert(!std::strcmp(e.text, "g"));
-  s.release(Button::DOWN);
+  s.release(Button::RIGHT);
   s.release(Button::B);s.release(Button::R);
   s.press(Button::R, true);s.release(Button::R);
   assert(s.shift_armed());
-  s.press(Button::RIGHT, true);
+  s.press(Button::L, true);
+  s.press(Button::UP, true);
   e = s.press(Button::A, true);
   assert(!std::strcmp(e.text, "E"));
-  s.release(Button::RIGHT);s.release(Button::A);
+  s.release(Button::UP);s.release(Button::L);s.release(Button::A);
   hold_caps(s);
   assert(s.caps());
   s.press(Button::R, true);s.release(Button::R);
   assert(!s.caps() && !s.shift_armed());
   s.press(Button::SELECT, true);
-  e = s.press(Button::RIGHT, true);
+  e = s.press(Button::L, true);
+  s.press(Button::UP, true);
   e = s.press(Button::A, true);
   assert(!std::strcmp(e.text, "é"));
   e = s.press(Button::A, true);
@@ -116,12 +118,12 @@ static void international() {
   };
   Family fs[] = {{Button::UP, Button::B, false, 'a'},
                  {Button::UP, Button::R, false, 'c'},
-                 {Button::RIGHT, Button::A, false, 'e'},
-                 {Button::DOWN, Button::A, false, 'i'},
-                 {Button::UP, Button::B, true, 'n'},
-                 {Button::UP, Button::A, true, 'o'},
-                 {Button::RIGHT, Button::R, true, 's'},
-                 {Button::DOWN, Button::A, true, 'u'},
+                 {Button::UP, Button::A, true, 'e'},
+                 {Button::RIGHT, Button::A, false, 'i'},
+                 {Button::DOWN, Button::B, false, 'n'},
+                 {Button::DOWN, Button::A, false, 'o'},
+                 {Button::DOWN, Button::R, true, 's'},
+                 {Button::LEFT, Button::A, false, 'u'},
                  {Button::LEFT, Button::A, true, 'y'},
                  {Button::LEFT, Button::R, true, 'z'}};
   for (auto f : fs) {
@@ -145,37 +147,37 @@ static void international() {
   s.press(Button::R, true);
   s.release(Button::R);
   s.press(Button::SELECT, true);
-  s.press(Button::RIGHT, true);
+  s.press(Button::L, true);s.press(Button::UP, true);
   assert(!std::strcmp(s.press(Button::A, true).text, "É"));
   s.release(Button::A);
   assert(!std::strcmp(s.press(Button::A, true).text, "È"));
   s.release(Button::A);
   assert(s.shift_armed());
-  s.release(Button::RIGHT);
+  s.release(Button::UP);s.release(Button::L);
   s.release(Button::SELECT);
   assert(!s.shift_armed());
   hold_caps(s);
   s.press(Button::L, true);
-  s.press(Button::RIGHT, true);
+  s.press(Button::DOWN, true);
   assert(!std::strcmp(s.press(Button::R, true).text, "S"));
 }
 static void session_boundaries() {
   InputState s;
-  s.press(Button::DOWN, true);
+  s.press(Button::RIGHT, true);
   s.press(Button::R, true);
   s.release(Button::R);
   s.press(Button::A, true);
   s.release(Button::A);
   assert(s.press(Button::R, true).kind == EventKind::INSERT); // j i j, not j g
   InputState v;
-  v.press(Button::DOWN, true);
+  v.press(Button::LEFT, true);
   v.press(Button::R, true);
   v.release(Button::R);
   v.press(Button::L, true);
-  assert(!std::strcmp(v.press(Button::R, true).text, "w"));
+  assert(!std::strcmp(v.press(Button::R, true).text, "z"));
   InputState caps;
   hold_caps(caps);
-  caps.press(Button::DOWN, true);
+  caps.press(Button::RIGHT, true);
   caps.press(Button::R, true);
   caps.release(Button::R);
   assert(!std::strcmp(caps.press(Button::R, true).text, "G"));

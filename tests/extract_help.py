@@ -9,4 +9,6 @@ match=re.search(r'HELP_PAGES\s*=\s*(\d+)',header)
 assert match, 'HELP_PAGES declaration not found'
 pages=int(match.group(1))
 assert len(lines)==pages*6, 'Each declared help page must contain six lines'
+credits=main.split('case Scene::CREDITS:',1)[1].split('case Scene::ERROR:',1)[0]
+lines += [ast.literal_eval(s) for s in re.findall(r'"(?:[^"\\]|\\.)*"', credits)]
 Path(sys.argv[1]).write_text('\n'.join(lines)+'\n')

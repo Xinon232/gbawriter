@@ -11,8 +11,8 @@ static void ignore(void*,InputEvent){}
 static void groups(){
  InputState s;
  const Button dirs[]={Button::UP,Button::RIGHT,Button::DOWN,Button::LEFT};
- const char* lower[]={"abc","def","hij","klm","nop","qrs","tuw","xyz"};
- const char* upper[]={"ABC","DEF","HIJ","KLM","NOP","QRS","TUW","XYZ"};
+ const char* lower[]={"abc","hij","nop","tuw","def","klm","qrs","xyz"};
+ const char* upper[]={"ABC","HIJ","NOP","TUW","DEF","KLM","QRS","XYZ"};
  for(int mode=0;mode<3;++mode){
   for(int layer=0;layer<2;++layer)for(int d=0;d<4;++d){
    unsigned mask=key(dirs[d])|(layer?key(Button::L):0);

@@ -7,12 +7,12 @@ struct AccentRow {unsigned group,button;const char* base;std::vector<const char*
 static const std::vector<AccentRow> accent_rows={
  {1,32,"a",{"á","ä","à","â","ã","å","æ"},{"Á","Ä","À","Â","Ã","Å","Æ"}},
  {1,128,"c",{"ç","č","ć"},{"Ç","Č","Ć"}},
- {8,16,"e",{"é","è","ë","ê"},{"É","È","Ë","Ê"}},
- {2,16,"i",{"í","ï","ì","î"},{"Í","Ï","Ì","Î"}},
- {65,32,"n",{"ñ","ń"},{"Ñ","Ń"}},
- {65,16,"o",{"ó","ö","ô","ò","õ","ø","œ"},{"Ó","Ö","Ô","Ò","Õ","Ø","Œ"}},
- {72,128,"s",{"ß","š","ś"},{"ß","Š","Ś"}},
- {66,16,"u",{"ü","ú","ù","û"},{"Ü","Ú","Ù","Û"}},
+ {65,16,"e",{"é","è","ë","ê"},{"É","È","Ë","Ê"}},
+ {8,16,"i",{"í","ï","ì","î"},{"Í","Ï","Ì","Î"}},
+ {2,32,"n",{"ñ","ń"},{"Ñ","Ń"}},
+ {2,16,"o",{"ó","ö","ô","ò","õ","ø","œ"},{"Ó","Ö","Ô","Ò","Õ","Ø","Œ"}},
+ {66,128,"s",{"ß","š","ś"},{"ß","Š","Ś"}},
+ {4,16,"u",{"ü","ú","ù","û"},{"Ü","Ú","Ù","Û"}},
  {68,16,"y",{"ý","ÿ"},{"Ý","Ÿ"}},
  {68,128,"z",{"ž","ź","ż"},{"Ž","Ź","Ż"}}
 };
@@ -72,11 +72,35 @@ template<class H> void accent_matrix(){
   h.expect((std::string(row.base)+".").c_str());
  }
  // g/v keep their existing two-R replacement and case; neither has accents.
- for(unsigned layer:{0u,64u})for(int mode=0;mode<3;++mode){
+ for(unsigned group:{8u,4u})for(int mode=0;mode<3;++mode){
   H h;if(mode){h.frame(R);if(mode==2)for(int i=0;i<48;++i)h.frame(R);h.frame(0);}
-  h.frame(layer|2|R);h.frame(layer|2);h.frame(layer|2|R);
-  const char* expected=layer?(mode?"V":"v"):(mode?"G":"g");h.expect(expected);
-  h.frame(layer|2|R|SELECT);h.expect(expected);h.frame(START|SELECT);h.frame(0);h.expect(expected);
+  h.frame(group|R);h.frame(group);h.frame(group|R);
+  const char* expected=group==4?(mode?"V":"v"):(mode?"G":"g");h.expect(expected);
+  h.frame(group|R|SELECT);h.expect(expected);h.frame(START|SELECT);h.frame(0);h.expect(expected);
+ }
+ // Special sessions have no time window; release the direction for jj/ww.
+ // Every other group's repeated R is literal, including both old locations.
+ for(unsigned group:{1u,65u,8u,72u,2u,66u,4u,68u})for(int mode=0;mode<3;++mode){
+  const char* thirds=group==1?"c":group==65?"f":group==8?"j":group==72?"m":group==2?"p":group==66?"s":group==4?"w":"z";
+  std::string third=thirds;if(mode)third[0]-=32;
+  auto arm=[&](H& h){if(mode){h.frame(R);if(mode==2)for(int i=0;i<48;++i)h.frame(R);h.frame(0);}};
+  for(bool continuous:{false,true})for(int wait:{0,1,1000}){
+   H h;arm(h);h.frame(group|R);h.frame(continuous?group:0);
+   for(int i=0;i<wait;++i)h.frame(continuous?group:0);
+   h.frame(group|R);
+   std::string second=mode==2?third:thirds;
+   std::string expected=continuous&&(group==8||group==4)?(group==8?(mode?"G":"g"):(mode?"V":"v")):third+second;
+   h.expect(expected.c_str());h.frame(0);h.expect(expected.c_str());
+  }
+ }
+ // Changing layer or pressing a different selector cancels special ownership.
+ for(unsigned group:{8u,4u}){
+  H layer;layer.frame(group|R);layer.frame(group);layer.frame(group|64);layer.frame(group|64|R);
+  layer.expect(group==8?"jm":"wz");
+  for(unsigned button:{16u,32u}){
+   H h;h.frame(group|R);h.frame(group);h.frame(group|button);h.frame(group);h.frame(group|R);
+   h.expect(group==8?(button==16?"jij":"jhj"):(button==16?"wuw":"wtw"));
+  }
  }
  // Toggle must retain a converted pre-existing letter through both tails.
  for(bool first:{false,true})for(unsigned tail:{0u,START,SELECT}){
@@ -99,7 +123,7 @@ template<class H> void accent_matrix(){
   h.frame(1|32);h.frame(1|32|SELECT);h.expect((full+"a").c_str());
   h.frame(START|SELECT);h.frame(0);h.expect((full+"a").c_str());}
  // Unsupported ordinary letters are unchanged, not a duplicate or a period.
- const unsigned groups[]={1,8,2,4,65,72,66,68};const char* letters[]={"abc","def","hij","klm","nop","qrs","tuw","xyz"};
+ const unsigned groups[]={1,65,8,72,2,66,4,68};const char* letters[]={"abc","def","hij","klm","nop","qrs","tuw","xyz"};
  const unsigned buttons[]={32,16,128};
  for(unsigned g=0;g<8;++g)for(unsigned b=0;b<3;++b){char base=letters[g][b];
   if(std::strchr("aceinosuyz",base))continue;
@@ -108,7 +132,7 @@ template<class H> void accent_matrix(){
    if(first)h.frame(SELECT);
    h.frame(groups[g]|buttons[b]|(first?SELECT:0));
    h.frame(groups[g]|buttons[b]|SELECT);h.frame(0);
-   const char* provisional[]={"1","(","0","-","1","(","0","-"};
+   const char* provisional[]={"1","1","(","(","0","0","-","-"};
    char expected[]={char(mode?base-32:base),0};h.expect(first?provisional[g]:expected);
   }
  }

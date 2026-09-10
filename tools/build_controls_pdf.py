@@ -34,7 +34,7 @@ def markup(text):
 readme = (root / 'README.md').read_text()
 # Include every maintained file/menu/typing/navigation/save control, not a shortcut summary.
 body = readme.split('## Hardware and installation\n', 1)[1].split('## Text, memory and limits', 1)[0]
-story: list[Flowable] = [Paragraph('gbawriter V1.1', styles['TitleUTF']),
+story: list[Flowable] = [Paragraph('gbawriter V1.2', styles['TitleUTF']),
          Paragraph('Full controls · Halim Jarrar', styles['SectionUTF']),
          Paragraph('Create and edit TXT files on your Game Boy Advance. Save your writing directly to the SD card. Put TXT files in <b>/gbawriter</b> at the root of your SD card. Requires a compatible Supercard SD.', styles['BodyTextUTF']),
          Paragraph('Hardware-unverified build: emulator and host tests are not proof of safe saving on a physical Supercard. Back up your SD card and use disposable documents first.', styles['BodyTextUTF']),
@@ -68,13 +68,13 @@ while i < len(lines):
     i += 1
 story.extend([Paragraph('Storage and attribution', styles['SectionUTF']),
     Paragraph('The document limit is 24 KiB of UTF-8 text. Saves change only the opened TXT file; no permanent .sav or settings file is used. Temporary .gwt, .gwb and .gwi recovery files may remain after interrupted or failed saves. Do not delete them on the original card: back up the card and consult the README recovery instructions. There is no undo/redo, autosave or discard shortcut.', styles['BodyTextUTF']),
-    Paragraph('Made by Halim Jarrar · (C) 2026 · halim-jarrar.de · monday@halim-jarrar.de. Based on GBAReader, SuperFW, Butano, FatFS and miniz; credits and font/vendor notices remain in the source. Application source: GNU GPL v3. See LICENSE and README for full attribution.', styles['BodyTextUTF'])])
+    Paragraph('Made by Halim Jarrar · (C) 2026 · halim-jarrar.de · monday@halim-jarrar.de. Based on GBAReader, SuperFW, Butano, FatFS and miniz; credits and font/vendor notices remain in the source. Fonts: SuperFW software font renderer; UNSCII fonts (viznut.fi/unscii, inherited source marked GPL); Unifont-derived Hangul blocks. Original font notices remain in references/superfw/res/fonts. Application source: GNU GPL v3. See LICENSE and README for full attribution.', styles['BodyTextUTF'])])
 
 def footer(canvas, doc):
     canvas.setFont('Body', 8)
     canvas.setFillColor(colors.HexColor('#526174'))
-    canvas.drawString(60, 30, 'gbawriter V1.1 · Full controls · Halim Jarrar')
+    canvas.drawString(60, 30, 'gbawriter V1.2 · Full controls · Halim Jarrar')
     canvas.drawRightString(535, 30, str(doc.page))
 
-SimpleDocTemplate(str(output), pagesize=(595.28,841.89), rightMargin=60, leftMargin=60, topMargin=48, bottomMargin=52, title='gbawriter V1.1 — Full controls', author='Halim Jarrar').build(story, onFirstPage=footer, onLaterPages=footer)
+SimpleDocTemplate(str(output), pagesize=(595.28,841.89), rightMargin=60, leftMargin=60, topMargin=48, bottomMargin=52, title='gbawriter V1.2 — Full controls', author='Halim Jarrar').build(story, onFirstPage=footer, onLaterPages=footer)
 print(output)

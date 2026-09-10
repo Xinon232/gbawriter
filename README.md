@@ -1,10 +1,10 @@
-# gbawriter — v1.1
+# gbawriter — V1.2
 
 Create and edit TXT files on your Game Boy Advance. Save your writing directly to the SD card, or open an existing text file to keep working. Put your TXT files in `/gbawriter` at the root of the SD card. Requires a compatible Supercard SD.
 
 Based on [GBAReader v0.5.0](https://github.com/Xinon232/gbareader), using Butano menus, the SuperFW bitmap text renderer and fonts, and Supercard SD/FatFS storage. There is no QWERTY keyboard, network service, or AI component.
 
-> **Physical hardware remains unverified.** Host tests and software filesystem fault injection pass; these are **not proof that saving is safe on a real GBA + Supercard SD**. Use disposable documents and a backed-up SD card until the hardware checklist below is completed. Do not entrust the only copy of a diary to this release. v1.1 is prepared as a final release; this does not certify physical-hardware safety.
+> **Physical hardware remains unverified.** Host tests and software filesystem fault injection pass; these are **not proof that saving is safe on a real GBA + Supercard SD**. Use disposable documents and a backed-up SD card until the hardware checklist below is completed. Do not entrust the only copy of a diary to this release. V1.2 is a prerelease candidate; this does not certify physical-hardware safety.
 
 ## Hardware and installation
 
@@ -26,9 +26,9 @@ If no dated documents exist, the manual starting date is **10 July 2026**. This 
 
 ## Controller layout
 
-Main-menu **SELECT** opens controls and **START** opens credits; **B** returns from either. The adjacent bottom hints read exactly `Select: Controls` and `Start: Credits`. Credits show `Made by Halim Jarrar`, `(C) 2026`, `halim-jarrar.de`, and `monday@halim-jarrar.de`.
+Main-menu **SELECT** opens controls and **START** opens credits; **B** returns from either. The adjacent bottom hints read exactly `Select: Controls` and `Start: Credits`. Credits always open on the personal first page: `Made by Halim Jarrar`, `(C) 2026`, `halim-jarrar.de`, and `monday@halim-jarrar.de`, with no third-party credit mixed into that page. Left/Right cycles the two Credits pages; B returns from either. The second page credits the SuperFW software font renderer, UNSCII fonts (`viznut.fi/unscii`, inherited source marked GPL), and Unifont-derived Hangul blocks. Font notices remain in the source.
 
-The suite home screen reads `gbawriter V1.1` and `files: /gbawriter`, with NEW FILE first/default and LOAD FILE second. The UI label is independent of the release tag.
+The suite home screen reads `gbawriter V1.2` and `files: /gbawriter`, with NEW FILE first/default and LOAD FILE second. The UI label is independent of the release tag.
 
 Menu interface text, help section headings and navigation hints use the existing blue UI font. Numeric date values, text filenames, saving indications, controls body text and credits content retain the SuperFW-based writing font. Editor typography and status positions are unchanged.
 
@@ -38,15 +38,15 @@ Hold a direction, then press **B / A / R** to choose its **first / second / thir
 
 | Direction | Normal: B / A / R | Hold L: B / A / R |
 |---|---|---|
-| Up | a / b / c | n / o / p |
-| Right | d / e / f | q / r / s |
-| Down | h / i / j | t / u / w |
-| Left | k / l / m | x / y / z |
+| Up | a / b / c | d / e / f |
+| Right | h / i / j | k / l / m |
+| Down | n / o / p | q / r / s |
+| Left | t / u / w | x / y / z |
 
 **L is held, never toggled.** Diagonals are not letter groups.
 
-- Keep Down held and press R twice: the first `j` becomes **`g`**.
-- Keep L+Down held and press R twice: the first `w` becomes **`v`**.
+- Keep Right held and press R twice: the first `j` becomes **`g`**.
+- Keep Left held and press R twice: the first `w` becomes **`v`**.
 - Release the group between presses to type literal `jj` or `ww`. These transformations depend on the same continuous hold, **not timing**, and never substitute unrelated text.
 - **A alone:** space. **B alone:** backspace one UTF-8 codepoint; no effect at the beginning. Hold either button alone to repeat: one immediate edit, first repeat after **24 frames**, then every **5 frames**, exactly matching START navigation. Adding any other button cancels edit repeat; releasing a chord's modifier does not start it. Release A/B and press it alone again to rearm. Letter/SELECT/save chords remain press-only.
 - **START released alone:** newline. Holding it does not insert immediately.
@@ -89,13 +89,13 @@ Press SELECT alone to insert **`.` immediately**. Keep SELECT held to change **t
 | Right | `. → ( → ) → / → ; → @ → # → % → & → _ → + → = → - → .` |
 | Left | Exact reverse additional-symbol cycle |
 
-A completed letter chord takes priority over intermediate directional/punctuation changes. For example SELECT, then Right, then A changes the same provisional `.` to `(` and then to `é`, not three characters. A complete L-layer chord similarly overrides the temporary SELECT+L punctuation step. Unsupported accent families leave the provisional glyph unchanged. **START+SELECT toggles the status bar in the editor only**, in either press order. It cancels only a newly inserted SELECT provisional character, restoring the original caret and dirty state. A converted existing letter stays accented; it is not deleted. The chord never types, saves, or adds a newline. It toggles once per hold and suppresses commands until both START and SELECT are released; other held buttons do not prevent rearming.
+A completed letter chord takes priority over intermediate directional/punctuation changes. For example SELECT, then Up, then L, then A changes the same provisional `.` to `1` and then to `é`, not three characters. A complete L-layer chord similarly overrides the temporary SELECT+L punctuation step. Unsupported accent families leave the provisional glyph unchanged. **START+SELECT toggles the status bar in the editor only**, in either press order. It cancels only a newly inserted SELECT provisional character, restoring the original caret and dirty state. A converted existing letter stays accented; it is not deleted. The chord never types, saves, or adds a newline. It toggles once per hold and suppresses commands until both START and SELECT are released; other held buttons do not prevent rearming.
 
 ### International letters
 
 **Accents work in either order:** hold SELECT, then enter the normal letter combination; or enter a letter and keep its **exact single D-pad direction, L if used, and producing B/A/R button continuously held**, then press SELECT. That same letter changes to its first accented variant, keeping its case, without adding a period or another letter. There is no time limit, but releasing or changing the combination ends eligibility. Other extra buttons disqualify this letter-first gesture; diagonals are not letter groups. A letter with no accent variants stays unchanged in the letter-first order.
 
-**Example:** hold RIGHT and press A to type `e`; keep RIGHT+A held and press SELECT to turn that same `e` into `é`. In the other order, hold SELECT, then RIGHT and press A to produce `é` as one character. The held-L groups work in both orders too.
+**Example:** hold L+UP and press A to type `e`; keep L+UP+A held and press SELECT to turn that same `e` into `é`. In the other order, hold SELECT, then L+UP and press A to produce `é` as one character. The held-L groups work in both orders too.
 
 While SELECT and the same group remain held, **release and press the final B/A/R selector again** to cycle in the exact order below. Keep the direction and L layer (if used) held during cycling. Release SELECT to keep the current result. The letter-first result keeps the original letter's lowercase/Shift/Caps case, even after one-shot Shift was consumed.
 
@@ -112,7 +112,7 @@ While SELECT and the same group remain held, **release and press the final B/A/R
 | Y | ý ÿ | Ý Ÿ |
 | Z | ž ź ż | Ž Ź Ż |
 
-N/S/U/Y/Z use the held L layer. Cycles wrap back to the first alternate. All 77 distinct required lowercase/uppercase glyphs are verified against the real font packs and renderer, including even/odd pixel addressing. Main-menu **SELECT** opens 20 control pages; Left/Right changes page; B returns. Help strings are checked for glyph coverage and screen width.
+E/S/Y/Z use the held L layer; N/O/U are unmodified groups. Cycles wrap back to the first alternate. All 77 distinct required lowercase/uppercase glyphs are verified against the real font packs and renderer, including even/odd pixel addressing. Main-menu **SELECT** opens 20 control pages; Left/Right changes page; B returns. Help strings are checked for glyph coverage and screen width.
 
 ## Text, memory and limits
 
@@ -123,7 +123,7 @@ N/S/U/Y/Z use the held L layer. Cycles wrap back to the first alternate. All 77 
 - Editor text begins at y=0 with unchanged 16-pixel glyph height and 18-pixel line pitch. The bar occupies y=144–159; a six-pixel gutter is reserved above it. Complete rows only: **7 rows with the bar, 9 full-screen**. Page navigation uses the current row count. Bar visibility defaults on at boot and remains a session preference across saves, errors and documents; it does not alter stored files.
 - The vertical caret is a drawn graphic primitive, not a text character, with GBA-safe halfword writes. It stays visible on typing/navigation and blinks after about one second idle (36-frame phases).
 - Loaded filenames must fit 250 bytes to leave room for transient recovery suffixes. Longer names can be listed but are refused when opened. Long visible names are clipped by pixel width; the status buffer retains complete UTF-8 names, including the dirty marker.
-- Measured clean devkitARM build: **139,468 bytes EWRAM occupied, 122,676 bytes remaining**; IWRAM user-stack headroom **26,900 bytes**; largest checked runtime-source static stack frame **1,640 bytes**. App and storage objects are explicitly in EWRAM. The memory gate enforces at least 64 KiB EWRAM headroom, 20 KiB IWRAM stack headroom and a 2 KiB individual-frame ceiling. This is a budget check, **not a proof of total call-stack/IRQ depth**.
+- Measured clean devkitARM build: **139,484 bytes EWRAM occupied, 122,660 bytes remaining**; IWRAM user-stack headroom **26,900 bytes**; largest checked runtime-source static stack frame **1,640 bytes**. App and storage objects are explicitly in EWRAM. The memory gate enforces at least 64 KiB EWRAM headroom, 20 KiB IWRAM stack headroom and a 2 KiB individual-frame ceiling. This is a budget check, **not a proof of total call-stack/IRQ depth**.
 - No EPUB editor, undo/redo, clipboard, search, autosave, RTC dependency, or general file manager.
 
 ## Saving and interrupted-save recovery
