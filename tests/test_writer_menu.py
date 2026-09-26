@@ -66,7 +66,7 @@ int main(int argc,char** argv){
  Application app(storage,[](const char*){return 6;}); app.boot();
  auto tap=[&](Button b){app.frame(1u<<unsigned(b));app.frame(0);};
  auto draw=[&](){draws.clear();render(app,storage);};
- draw(); check("gbawriter V1.2",true);check("files: /gbawriter",true);check("NEW FILE",true);check("LOAD FILE",true);check("Select: Controls",true);check("Start: Credits",true);only_ui();
+ draw(); check("gbawriter V1.3",true);check("files: /gbawriter",true);check("NEW FILE",true);check("LOAD FILE",true);check("Select: Controls",true);check("Start: Credits",true);only_ui();
  check_font("NEW FILE","ui");check_font("Select: Controls","hint");check_font(">","cursor");
  Draw item{};for(auto& d:draws)if(d.text=="NEW FILE")item=d;assert(cursor().y==item.y&&cursor().x<item.x);
  Draw select{},start{};for(auto& d:draws){if(d.text=="Select: Controls")select=d;if(d.text=="Start: Credits")start=d;}

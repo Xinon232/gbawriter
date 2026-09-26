@@ -44,6 +44,6 @@ for required in ('UP: ABC    RIGHT: HIJ', 'DOWN: NOP  LEFT: TUW',
 for row in ('| Up | a / b / c | d / e / f |', '| Right | h / i / j | k / l / m |',
             '| Down | n / o / p | q / r / s |', '| Left | t / u / w | x / y / z |'):
     assert row in readme
-assert 'gbawriter V1.2' in main
+assert 'gbawriter V1.3' in main
 assert readme.startswith('# gbawriter')
 print(f'PASS: both-order Select help/README contract; {pages} complete pages')

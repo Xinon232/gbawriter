@@ -1,3 +1,26 @@
+# gbawriter V1.3 — large files and gbamp3 UI font (pre-release)
+
+Based on V1.2 (`577ff2a`). **Physical hardware remains unverified**: host tests and FatFS disk-image fault injection pass, but saving on a real Supercard SD has not been tested with this version. Keep backups.
+
+## No file size limit
+
+- Files are no longer loaded into a 24 KiB buffer. An opened TXT file stays on the SD card and is read through a small cache; only your changes use RAM. Files up to 2 GiB open.
+- Up to **64 KiB of typed text** can be unsaved at once (plus 1,024 separate edit spots). When full, the bar shows `BUFFER FULL - SAVE` and the keystroke is refused with your text kept; saving frees the space. Backspacing text you just typed frees space too.
+- Rows are laid out only around the screen, so typing in a long file is faster than before. Wrapping, cursor movement and all controls are unchanged; a file still opens with the cursor at the end.
+- Saving streams the file plus your edits into the temporary copy and verifies it, then uses the same journal/backup/rename steps as before. Saving a large file takes longer. Recovery never deletes the file you are editing; if it would have to, it shows `RECOVERY: CHECK SD ON PC` and keeps your text.
+
+## Look
+
+- Menu and interface text uses the 5x7 font from gbamp3 (hints in grey). The blue `>` cursor stays and now also marks the selected date field and file. Editor text, file names, help and credits text keep the SuperFW font. Credits name the new UI font.
+
+## Verification
+
+- Host suites (plain and ASan/UBSan) including a new 300 KB end-to-end app test (paged top to bottom and back, edited at both ends, saved twice).
+- FatFS image: 8,736 checks, 0 failures, including a fault at each of 1,055 disk events of saving a ~100 KB file edited in the middle.
+- ROM build and memory gate: EWRAM 134,916 used / 127,228 free; IWRAM stack headroom 23,592 bytes.
+
+## Previous release notes (V1.2)
+
 # gbawriter V1.2 — input-layout prerelease candidate
 
 - Based on the verified GitHub v1.1.0 release, on a separate release branch; not published yet.

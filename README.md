@@ -1,4 +1,4 @@
-# gbawriter — V1.2
+# gbawriter — V1.3
 
 Create and edit TXT files on your Game Boy Advance. Save your writing directly to the SD card, or open an existing text file to keep working. Put your TXT files in `/gbawriter` at the root of the SD card. Requires a compatible Supercard SD.
 
@@ -28,9 +28,9 @@ If no dated documents exist, the manual starting date is **10 July 2026**. This 
 
 Main-menu **SELECT** opens controls and **START** opens credits; **B** returns from either. The adjacent bottom hints read exactly `Select: Controls` and `Start: Credits`. Credits always open on the personal first page: `Made by Halim Jarrar`, `(C) 2026`, `halim-jarrar.de`, and `monday@halim-jarrar.de`, with no third-party credit mixed into that page. Left/Right cycles the two Credits pages; B returns from either. The second page credits the SuperFW software font renderer, UNSCII fonts (`viznut.fi/unscii`, inherited source marked GPL), and Unifont-derived Hangul blocks. Font notices remain in the source.
 
-The suite home screen reads `gbawriter V1.2` and `files: /gbawriter`, with NEW FILE first/default and LOAD FILE second. The UI label is independent of the release tag.
+The suite home screen reads `gbawriter V1.3` and `files: /gbawriter`, with NEW FILE first/default and LOAD FILE second. The UI label is independent of the release tag.
 
-Menu interface text, help section headings and navigation hints use the existing blue UI font. Numeric date values, text filenames, saving indications, controls body text and credits content retain the SuperFW-based writing font. Editor typography and status positions are unchanged.
+Menu interface text, help section headings and navigation hints use the 5x7 font from gbamp3 (black; key hints grey); the blue Butano font draws only the `>` cursor on the menu, date fields and file list. Numeric date values, text filenames, saving indications, controls body text and credits content retain the SuperFW-based writing font. Editor typography and status positions are unchanged.
 
 The [full-controls PDF](gbawriter-full-controls.pdf) includes the description, file placement and every control below, with author credit Halim Jarrar. Regenerate it with `python3 tools/build_controls_pdf.py` in an environment with ReportLab and DejaVu Sans installed.
 

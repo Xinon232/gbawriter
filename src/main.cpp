@@ -74,7 +74,7 @@ void render(bn::palette_bitmap_bg_painter& painter,bn::sprite_text_generator& ui
  using writer::Scene;
  switch(app.scene()){
  case Scene::MENU:
-  title(ui,sprites,"gbawriter V1.2");ui_line(ui,sprites,70,28,"files: /gbawriter");
+  title(ui,sprites,"gbawriter V1.3");ui_line(ui,sprites,70,28,"files: /gbawriter");
   cursor_at(cursor,sprites,80,app.menu_selection()==0?50:74);ui_line(ui,sprites,94,50,"NEW FILE");ui_line(ui,sprites,94,74,"LOAD FILE");
   ui_line(hint,sprites,16,140,"Select: Controls");ui_line(hint,sprites,128,140,"Start: Credits");break;
  case Scene::DATE:{
