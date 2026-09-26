@@ -4,11 +4,14 @@
 #include "bn_keypad.h"
 #include "bn_palette_bitmap_bg_painter.h"
 #include "bn_palette_bitmap_bg_ptr.h"
+#include "bn_sprite_items_ui_small_font.h"
 #include "bn_sprite_items_ui_variable_8x16_font.h"
+#include "bn_sprite_palette_item.h"
 #include "bn_sprite_ptr.h"
 #include "bn_sprite_text_generator.h"
 #include "bn_vector.h"
 #include "common_variable_8x16_sprite_font.h"
+#include "ui_small_font.h"
 extern "C" {
 #include "font_render.h"
 }
@@ -20,6 +23,9 @@ namespace {
 constexpr bn::color colors[16]={bn::color(31,31,31),bn::color(0,0,0),bn::color(12,12,12),bn::color(20,20,20)};
 constexpr bn::bg_palette_item palette(bn::span<const bn::color>(colors),bn::bpp_mode::BPP_8);
 int glyph_width(const char* text){return int(font_width(text));}
+// gbamp3 grey (0x4210) for key hints; other interface text is black.
+constexpr bn::color hint_colors[16]={bn::color(31,0,31),bn::color(16,16,16),bn::color(31,31,31)};
+constexpr bn::sprite_palette_item hint_palette(bn::span<const bn::color>(hint_colors),bn::bpp_mode::BPP_4);
 // .sbss is the devkitARM/Butano linker-script EWRAM BSS section, NOT IWRAM.
 __attribute__((section(".sbss"))) writer::Storage storage;
 __attribute__((section(".sbss"))) writer::Application app(storage,glyph_width);
@@ -32,6 +38,9 @@ void pixel(uint8_t* px,int x,int y){
 }
 void title(bn::sprite_text_generator& ui,Sprites& sprites,const char* text){ui.set_center_alignment();ui.generate(0,-68,text,sprites);}
 void ui_line(bn::sprite_text_generator& ui,Sprites& sprites,int x,int y,const char* text){ui.set_left_alignment();ui.generate(x-120,y-72,text,sprites);}
+// The blue Butano ">" marks the selected row; its 16 px cell top is at y.
+void cursor_at(bn::sprite_text_generator& cursor,Sprites& sprites,int x,int y){ui_line(cursor,sprites,x,y,">");}
+constexpr int DATE_VALUE_X=104;
 const char* const help[writer::Application::HELP_PAGES][6]={
  {"ABOUT / FILES","Create and edit TXT files.","Save directly to SD.","Put TXT files in SD root folder:","/gbawriter","Supercard SD required"},
  {"MENUS / FILES","UP/DOWN: select  A: open","NEW FILE: choose date, A: create","LOAD FILE: choose TXT, A: open","B: back  Error message: A: OK","Menu SELECT: help START: credits"},
@@ -54,28 +63,31 @@ const char* const help[writer::Application::HELP_PAGES][6]={
  {"ACCENT EXAMPLE / STATUS","L+UP+A held, then SELECT: é","START+SELECT: bar / full screen","Cancels new provisional only","Converted existing letter stays","Release both to end status chord"},
  {"STATUS BAR / DATE","Bottom: file, group, Shift/Caps","Date UP/DOWN: choose field","Date LEFT/RIGHT: change value","Date A: create  B: back","No autosave or discard shortcut"}
 };
-void render(bn::palette_bitmap_bg_painter& painter,bn::sprite_text_generator& ui,Sprites& sprites){
+// Interface text: gbamp3 5x7 font (ui black, hint grey); cursor: blue Butano font.
+void render(bn::palette_bitmap_bg_painter& painter,bn::sprite_text_generator& ui,bn::sprite_text_generator& hint,bn::sprite_text_generator& cursor,Sprites& sprites){
  sprites.clear();painter.fill(0);auto* px=reinterpret_cast<uint8_t*>(painter.page().data());char buffer[writer::FILE_NAME_SIZE + 2]; // Complete filename + dirty prefix + NUL; clip pixels, not UTF-8 bytes.
  using writer::Scene;
  switch(app.scene()){
  case Scene::MENU:
-  title(ui,sprites,"gbawriter V1.2");ui_line(ui,sprites,70,28,"files: /gbawriter");ui.set_center_alignment();ui.generate(0,-22,app.menu_selection()==0?"> NEW FILE":"  NEW FILE",sprites);ui.generate(0,2,app.menu_selection()==1?"> LOAD FILE":"  LOAD FILE",sprites);
-  ui_line(ui,sprites,16,140,"Select: Controls");ui_line(ui,sprites,128,140,"Start: Credits");break;
+  title(ui,sprites,"gbawriter V1.2");ui_line(ui,sprites,70,28,"files: /gbawriter");
+  cursor_at(cursor,sprites,80,app.menu_selection()==0?50:74);ui_line(ui,sprites,94,50,"NEW FILE");ui_line(ui,sprites,94,74,"LOAD FILE");
+  ui_line(hint,sprites,16,140,"Select: Controls");ui_line(hint,sprites,128,140,"Start: Credits");break;
  case Scene::DATE:{
   title(ui,sprites,"NEW FILE");auto d=app.date();
-  ui_line(ui,sprites,38,34,app.date_field()==0?"> DAY":"  DAY");writer::format(buffer,sizeof(buffer),"%c DAY     ",app.date_field()==0?'>':' ');int day_x=38+glyph_width(buffer);writer::format(buffer,sizeof(buffer),"%02d",d.day);line(px,day_x,34,buffer);
-  ui_line(ui,sprites,38,54,app.date_field()==1?"> MONTH":"  MONTH");writer::format(buffer,sizeof(buffer),"%c MONTH   ",app.date_field()==1?'>':' ');int month_x=38+glyph_width(buffer);writer::format(buffer,sizeof(buffer),"%02d",d.month);line(px,month_x,54,buffer);
-  ui_line(ui,sprites,38,74,app.date_field()==2?"> YEAR":"  YEAR");writer::format(buffer,sizeof(buffer),"%c YEAR    ",app.date_field()==2?'>':' ');int year_x=38+glyph_width(buffer);writer::format(buffer,sizeof(buffer),"%04d",d.year);line(px,year_x,74,buffer);
-  ui_line(ui,sprites,8,108,"UP/DOWN: FIELD  LEFT/RIGHT: +/-");ui_line(ui,sprites,28,136,"A: CREATE   B: BACK");break;}
+  cursor_at(cursor,sprites,38,34+app.date_field()*20);
+  ui_line(ui,sprites,50,34,"DAY");writer::format(buffer,sizeof(buffer),"%02d",d.day);line(px,DATE_VALUE_X,34,buffer);
+  ui_line(ui,sprites,50,54,"MONTH");writer::format(buffer,sizeof(buffer),"%02d",d.month);line(px,DATE_VALUE_X,54,buffer);
+  ui_line(ui,sprites,50,74,"YEAR");writer::format(buffer,sizeof(buffer),"%04d",d.year);line(px,DATE_VALUE_X,74,buffer);
+  ui_line(hint,sprites,8,108,"UP/DOWN: FIELD  LEFT/RIGHT: +/-");ui_line(hint,sprites,28,136,"A: CREATE   B: BACK");break;}
  case Scene::LOAD:{
   title(ui,sprites,"LOAD FILE");if(!storage.count())ui_line(ui,sprites,48,64,"NO TXT FILES");
   int first=(app.selected_file()/6)*6;
-  for(int i=first;i<storage.count()&&i<first+6;++i){int y=24+(i-first)*18;ui_line(ui,sprites,6,y,i==app.selected_file()?">":" ");line(px,18,y,storage.name(i),216);}
-  ui_line(ui,sprites,8,138,"UP/DOWN  A: OPEN  B: BACK");break;}
+  for(int i=first;i<storage.count()&&i<first+6;++i){int y=24+(i-first)*18;if(i==app.selected_file())cursor_at(cursor,sprites,6,y);line(px,18,y,storage.name(i),216);}
+  ui_line(hint,sprites,8,138,"UP/DOWN  A: OPEN  B: BACK");break;}
  case Scene::HELP:
   writer::format(buffer,sizeof(buffer),"CONTROLS %d/%d",app.help_page()+1,writer::Application::HELP_PAGES);title(ui,sprites,buffer);
   ui_line(ui,sprites,8,24,help[app.help_page()][0]);
-  for(int row=1;row<6;++row){line(px,8,24+row*18,help[app.help_page()][row]);}ui_line(ui,sprites,8,138,"Left/Right: Page  B: Back");break;
+  for(int row=1;row<6;++row){line(px,8,24+row*18,help[app.help_page()][row]);}ui_line(hint,sprites,8,138,"Left/Right: Page  B: Back");break;
  case Scene::CREDITS:
   if(app.credits_page()==0){
   title(ui,sprites,"CREDITS");
@@ -83,18 +95,19 @@ void render(bn::palette_bitmap_bg_painter& painter,bn::sprite_text_generator& ui
   line(px,8,82,"halim-jarrar.de");line(px,8,104,"monday@halim-jarrar.de");
   }else{
    title(ui,sprites,"SUPERFW / FONTS");
-   line(px,8,38,"SuperFW software font renderer");
-   line(px,8,56,"UNSCII fonts: viznut.fi/unscii");
-   line(px,8,74,"UNSCII source: GPL license");
-   line(px,8,92,"Unifont-derived Hangul blocks");
-   line(px,8,110,"Font notices kept in source");
+   line(px,8,30,"SuperFW software font renderer");
+   line(px,8,48,"UNSCII fonts: viznut.fi/unscii");
+   line(px,8,66,"UNSCII source: GPL license");
+   line(px,8,84,"Unifont-derived Hangul blocks");
+   line(px,8,102,"Font notices kept in source");
+   line(px,8,120,"UI font: gbamp3 5x7 font");
   }
-  ui_line(ui,sprites,8,138,"Left/Right: Page  B: Back");break;
+  ui_line(hint,sprites,8,138,"Left/Right: Page  B: Back");break;
  case Scene::ERROR:
   title(ui,sprites,"PLEASE NOTE");ui_line(ui,sprites,8,42,app.message());
   if(!std::strcmp(app.message(),"FILE ALREADY EXISTS")){char name[13];writer::format_diary_name(app.date(),name);line(px,48,64,name);ui_line(ui,sprites,20,88,"CHOOSE ANOTHER DATE");}
   else if(!std::strcmp(app.message(),"RECOVERY: CHECK SD ON PC")){ui_line(ui,sprites,8,66,"Preserved recovery copies.");ui_line(ui,sprites,8,86,"Back up SD before repair.");}
-  ui_line(ui,sprites,70,132,"A: OK");break;
+  ui_line(hint,sprites,70,132,"A: OK");break;
  case Scene::EDITOR:{
   if(app.status_visible()){
    if(app.message()[0])line(px,8,writer::STATUS_Y,app.message(),128);else{
@@ -122,8 +135,12 @@ uint16_t keys(){
 }
 int main(){
  bn::core::init();auto bg=bn::palette_bitmap_bg_ptr::create(palette);bn::palette_bitmap_bg_painter painter(bg);
- bn::sprite_font ui_font(bn::sprite_items::ui_variable_8x16_font,common::variable_8x16_sprite_font_utf8_characters_map.reference(),common::variable_8x16_sprite_font_character_widths);
- bn::sprite_text_generator ui(ui_font);ui.set_palette_item(bn::sprite_items::ui_variable_8x16_font.palette_item());Sprites sprites;
+ // Interface text uses gbamp3's 5x7 font; the blue Butano font only draws the ">" cursor.
+ bn::sprite_font ui_font(bn::sprite_items::ui_small_font,bn::utf8_characters_map_ref(),writer::ui_small_font_character_widths);
+ bn::sprite_text_generator ui(ui_font);ui.set_palette_item(bn::sprite_items::ui_small_font.palette_item());
+ bn::sprite_text_generator hint(ui_font);hint.set_palette_item(hint_palette);
+ bn::sprite_font cursor_font(bn::sprite_items::ui_variable_8x16_font,common::variable_8x16_sprite_font_utf8_characters_map.reference(),common::variable_8x16_sprite_font_character_widths);
+ bn::sprite_text_generator cursor(cursor_font);cursor.set_palette_item(bn::sprite_items::ui_variable_8x16_font.palette_item());Sprites sprites;
  app.boot();
  while(true){
   uint16_t snapshot=keys();
@@ -131,6 +148,6 @@ int main(){
   bool checking=app.scene()==writer::Scene::MENU&&bn::keypad::a_pressed();
   bool saving=app.save_feedback(snapshot);
   if(checking||saving){sprites.clear();painter.fill(0);if(checking)ui_line(ui,sprites,32,64,"CHECKING SD...");else line(reinterpret_cast<uint8_t*>(painter.page().data()),32,64,"SAVING - DO NOT POWER OFF");painter.flip_page_later();bn::core::update();}
-  app.frame(snapshot);if(app.take_redraw())render(painter,ui,sprites);bn::core::update();
+  app.frame(snapshot);if(app.take_redraw())render(painter,ui,hint,cursor,sprites);bn::core::update();
  }
 }
