@@ -33,12 +33,12 @@ check(s.scan()==StoreResult::OK&&s.count()==0,"empty scan");
 check(s.create("Mixed Name.TXT",t)==StoreResult::OK,"LFN uppercase extension create");
 std::string utf8=u8"é Ελληνικά 日本語 😀\r\nline two\n";check(t.insert(utf8.c_str()),"insert UTF8");check(s.save(t)==StoreResult::OK&&!t.dirty(),"first save marks clean");check(get("Mixed Name.TXT")==utf8&&clean("Mixed Name.TXT"),"exact UTF8 no footer or sidecars");
 check(s.create("mixed name.txt",t)==StoreResult::EXISTS&&get("Mixed Name.TXT")==utf8,"case insensitive exclusive create preserves content");
-check(s.load("MIXED NAME.txt",t)==StoreResult::OK&&std::string(t.data())==utf8,"case insensitive load exact");
+check(s.load("MIXED NAME.txt",t)==StoreResult::OK&&std::string(t.str().c_str())==utf8,"case insensitive load exact");
 std::string large(TEXT_CAPACITY,'a');large.replace(510,4,u8"😀");check(t.set_text(large.c_str()),"capacity UTF8");check(t.insert("x")==false,"over capacity edit refused");check(s.save(t)==StoreResult::OK&&get("Mixed Name.TXT")==large,"24KiB save including split UTF8 sector");
 check(t.set_text("short\n")&&s.save(t)==StoreResult::OK&&get("Mixed Name.TXT")=="short\n","sequential shorter replacement no tail");check(t.set_text("")&&s.save(t)==StoreResult::OK&&get("Mixed Name.TXT").empty(),"sequential empty replacement");
 remount();check(s.load("Mixed Name.TXT",t)==StoreResult::OK&&t.bytes()==0,"remount persisted");
 for(const char* n:{"../evil.txt","a/b.txt","a\\b.txt","0:x.txt","bad.bin",""})check(s.create(n,t)==StoreResult::INVALID_NAME,std::string("reject path ")+n);
-put("bad.txt",std::string("a\0b",3));put("over.txt",std::string(TEXT_CAPACITY+1,'x'));put("invalid.txt",std::string("\xc0\xaf",2));t.set_text("keep");t.insert("!");std::string kept=t.data();check(s.load("bad.txt",t)==StoreResult::INVALID_UTF8&&std::string(t.data())==kept&&t.dirty(),"NUL refused without buffer loss");check(s.load("invalid.txt",t)==StoreResult::INVALID_UTF8&&std::string(t.data())==kept,"invalid UTF8 refused");check(s.load("over.txt",t)==StoreResult::TOO_LARGE&&std::string(t.data())==kept,"oversize refused");
+put("bad.txt",std::string("a\0b",3));put("over.txt",std::string(TEXT_CAPACITY+1,'x'));put("invalid.txt",std::string("\xc0\xaf",2));t.set_text("keep");t.insert("!");std::string kept=t.str().c_str();check(s.load("bad.txt",t)==StoreResult::INVALID_UTF8&&std::string(t.str().c_str())==kept&&t.dirty(),"NUL refused without buffer loss");check(s.load("invalid.txt",t)==StoreResult::INVALID_UTF8&&std::string(t.str().c_str())==kept,"invalid UTF8 refused");check(s.load("over.txt",t)==StoreResult::OK&&t.str()==std::string(TEXT_CAPACITY+1,'x')&&!t.dirty()&&t.unsaved_bytes()==0,"file larger than the typed-text buffer streams from SD");
 put("09072026.txt","");put("11072026.TXT","");put("zebra.txt","");put("Alpha.txt","");put("ignored.bin","");must(f_mkdir("/gbawriter/folder.txt")==FR_OK,"directory fixture");check(s.scan()==StoreResult::OK,"sorted scan");for(int i=0;i<s.count();++i)printf("SCAN %s\n",s.name(i));check(std::string(s.name(0))=="11072026.TXT"&&std::string(s.name(1))=="09072026.txt"&&std::string(s.name(2))=="Alpha.txt","dates newest first then case insensitive alpha");check(s.proposed_date().day==12&&s.proposed_date().month==7&&s.proposed_date().year==2026,"next diary date");check(s.total()==8,"ignore non txt and directories");
 put("recover.txt.gwb","old");put("recover.txt.gwt","new");check(s.recover("recover.txt")==StoreResult::OK&&get("recover.txt")=="old"&&clean("recover.txt"),"restore missing canonical from backup");
 put("ambig.txt","new");put("ambig.txt.gwb","old");check(s.recover("ambig.txt")==StoreResult::RECOVERY_NEEDED&&get("ambig.txt")=="new"&&get("ambig.txt.gwb")=="old","ambiguous copies retained");
@@ -46,9 +46,40 @@ put("stage.txt","old");put("stage.txt.gwt","partial");check(s.load("stage.txt",t
 // Snapshot a clean transaction target. Each run restores exact on-disk baseline.
 put("fault.txt","original bytes\n");remount();fflush(image);std::vector<unsigned char> baseline(32768*512);rewind(image);must(fread(baseline.data(),1,baseline.size(),image)==baseline.size(),"snapshot");
 std::string replacement(1700,'R');replacement+=utf8;long boundary=0;int injected=0,reported=0,recovery_needed=0;
-for(long at=0;;++at){fail_at=-1;f_mount(nullptr,"0:",0);rewind(image);must(fwrite(baseline.data(),1,baseline.size(),image)==baseline.size()&&!fflush(image),"restore image");remount();Storage f;TextModel edit;must(f.load("fault.txt",edit)==StoreResult::OK,"fault fixture load");must(edit.set_text(replacement.c_str())&&edit.insert("!"),"fault edit");std::string expected=edit.data();events=0;fired=false;fail_at=at?at:-1;StoreResult r=f.save(edit);long used=events;fail_at=-1;if(!at){boundary=used;printf("SAVE_DISK_BOUNDARIES %ld\n",boundary);}else{check(fired,"injection fired "+std::to_string(at));++injected;if(r!=StoreResult::OK)++reported;check(r==StoreResult::OK||edit.dirty(),"failure keeps dirty "+std::to_string(at));}
+for(long at=0;;++at){fail_at=-1;f_mount(nullptr,"0:",0);rewind(image);must(fwrite(baseline.data(),1,baseline.size(),image)==baseline.size()&&!fflush(image),"restore image");remount();Storage f;TextModel edit;must(f.load("fault.txt",edit)==StoreResult::OK,"fault fixture load");must(edit.set_text(replacement.c_str())&&edit.insert("!"),"fault edit");std::string expected=edit.str().c_str();events=0;fired=false;fail_at=at?at:-1;StoreResult r=f.save(edit);long used=events;fail_at=-1;if(!at){boundary=used;printf("SAVE_DISK_BOUNDARIES %ld\n",boundary);}else{check(fired,"injection fired "+std::to_string(at));++injected;if(r!=StoreResult::OK)++reported;check(r==StoreResult::OK||edit.dirty(),"failure keeps dirty "+std::to_string(at));}
 if(at>=99&&at<=101)dump("fault"+std::to_string(at)+"-before-recovery.img");int before=failures;remount();auto recovery_before=image_bytes();long recovery_writes=writes;StoreResult rr=f.recover("fault.txt");if(rr==StoreResult::RECOVERY_NEEDED){++recovery_needed;check(writes==recovery_writes&&image_bytes()==recovery_before,"manual recovery preserves whole image "+std::to_string(at));}if(at>=99&&at<=101){check(rr==StoreResult::RECOVERY_NEEDED,"crosslink refused "+std::to_string(at));check(get("fault.txt.gwt")==expected&&get("fault.txt.gwb")=="original bytes\n"&&exists("fault.txt.gwi"),"crosslink retains exact new, old and manifest "+std::to_string(at));dump("fault"+std::to_string(at)+"-after-recovery.img");}remount();check(rr==StoreResult::OK||rr==StoreResult::RECOVERY_NEEDED,"recover result "+std::to_string(at));check(exists("fault.txt"),"canonical exists "+std::to_string(at));if(exists("fault.txt")){auto value=get("fault.txt");check(value=="original bytes\n"||value==expected,"canonical old or exact new "+std::to_string(at));if(r==StoreResult::OK)check(value==expected,"reported saved persisted "+std::to_string(at));}if(failures>before)dump("fault"+std::to_string(at)+"-after-recovery.img");printf("FAULT %ld save=%d recover=%d fired=%d\n",at,int(r),int(rr),int(fired));if(at==boundary)break;}
 printf("FAULT_SUMMARY injected=%d save_non_ok=%d manual_recovery=%d\n",injected,reported,recovery_needed);
+// A document that still reads its file from SD (larger than the typed-text
+// buffer), edited in the middle, saved with a fault at every disk event. The
+// session text must stay exact and readable, a same-session retry must never
+// delete the file the session reads, and the canonical file is old or new.
+{
+std::string big;for(int i=0;big.size()<100000;++i){big+="line "+std::to_string(i)+u8" é 日本 😀 ";if(i%7==0)big+="\n";}
+put("big.txt",big);remount();auto big_base=image_bytes();long big_boundary=0;int big_failed=0,big_retried=0,big_refused=0;
+for(long at=0;;++at){fail_at=-1;f_mount(nullptr,"0:",0);rewind(image);must(fwrite(big_base.data(),1,big_base.size(),image)==big_base.size()&&!fflush(image),"restore big image");remount();
+ Storage f;TextModel edit;must(f.load("big.txt",edit)==StoreResult::OK&&edit.bytes()==big.size()&&edit.unsaved_bytes()==0,"big load streams");
+ edit.set_caret(big.size()/2);must(edit.insert("INSERTED\n"),"big insert");edit.set_caret(1000);must(edit.backspace()&&edit.backspace(),"big erase");edit.move_end();must(edit.insert("END"),"big append");
+ std::string expected=edit.str();must(!edit.read_failed()&&expected.size()>big.size()&&expected.find("INSERTED\n")!=std::string::npos,"big expected");
+ events=0;fired=false;fail_at=at?at:-1;StoreResult r=f.save(edit);long used=events;fail_at=-1;
+ if(!at){big_boundary=used;printf("BIG_SAVE_DISK_BOUNDARIES %ld\n",big_boundary);check(r==StoreResult::OK,"big clean save");}
+ else check(fired,"big injection fired "+std::to_string(at));
+ edit.clear_read_failed();std::string session=edit.str();
+ check(!edit.read_failed()&&session==expected,"big session text exact after save "+std::to_string(at));
+ if(r==StoreResult::OK)check(!edit.dirty()&&edit.unsaved_bytes()==0&&get("big.txt")==expected,"big saved, reopened, buffer free "+std::to_string(at));
+ else{++big_failed;check(edit.dirty(),"big failure keeps dirty "+std::to_string(at));
+  // Same session, as the app does before a save: recover, then save again.
+  StoreResult rr=f.recover("big.txt");check(rr==StoreResult::OK||rr==StoreResult::RECOVERY_NEEDED,"big recover result "+std::to_string(at));
+  edit.clear_read_failed();check(edit.str()==expected&&!edit.read_failed(),"big recovery keeps session source "+std::to_string(at));
+  if(rr==StoreResult::OK){++big_retried;StoreResult r2=f.save(edit);check(r2==StoreResult::OK&&get("big.txt")==expected&&!edit.dirty(),"big retry saves "+std::to_string(at));}
+  else ++big_refused;}
+ remount();Storage g;StoreResult gr=g.recover("big.txt");check(gr==StoreResult::OK||gr==StoreResult::RECOVERY_NEEDED,"big fresh recover "+std::to_string(at));
+ check(exists("big.txt"),"big canonical exists "+std::to_string(at));
+ if(exists("big.txt")){auto value=get("big.txt");check(value==big||value==expected,"big canonical old or exact new "+std::to_string(at));}
+ if(at==big_boundary)break;}
+printf("BIG_FAULT_SUMMARY failed=%d retried=%d refused=%d\n",big_failed,big_retried,big_refused);
+must(f_unlink("/gbawriter/big.txt")==FR_OK,"remove big fixture");
+for(const char* n:{"big.txt.gwt","big.txt.gwb","big.txt.gwi"})if(exists(n))must(f_unlink(("/gbawriter/"+std::string(n)).c_str())==FR_OK,"remove big staging");
+}
 must(f_unlink("/gbawriter/ambig.txt.gwb")==FR_OK,"resolve intentional ambiguity before scan");
 auto scan_before=image_bytes();long scan_writes=writes;check(s.scan()==StoreResult::RECOVERY_NEEDED&&get("stage.txt")=="old"&&get("stage.txt.gwt")=="partial"&&writes==scan_writes&&image_bytes()==scan_before,"scan refuses staging ambiguity without disk mutation");
 // Explicit test-fixture resolution: rename the independently created staging copy,

@@ -22,7 +22,12 @@ extern "C" {
 namespace {
 constexpr bn::color colors[16]={bn::color(31,31,31),bn::color(0,0,0),bn::color(12,12,12),bn::color(20,20,20)};
 constexpr bn::bg_palette_item palette(bn::span<const bn::color>(colors),bn::bpp_mode::BPP_8);
-int glyph_width(const char* text){return int(font_width(text));}
+// Layout measures every character it lays out; ASCII widths are cached (width + 1).
+int glyph_width(const char* text){
+ const unsigned c=static_cast<unsigned char>(text[0]);
+ if(c>=128||!c||text[1])return int(font_width(text));
+ static uint8_t ascii[128];if(!ascii[c])ascii[c]=uint8_t(font_width(text)+1);return ascii[c]-1;
+}
 // gbamp3 grey (0x4210) for key hints; other interface text is black.
 constexpr bn::color hint_colors[16]={bn::color(31,0,31),bn::color(16,16,16),bn::color(31,31,31)};
 constexpr bn::sprite_palette_item hint_palette(bn::span<const bn::color>(hint_colors),bn::bpp_mode::BPP_4);
@@ -116,10 +121,10 @@ void render(bn::palette_bitmap_bg_painter& painter,bn::sprite_text_generator& ui
    line(px,144,writer::STATUS_Y,app.active_group(),32);
    if(app.caps())line(px,184,writer::STATUS_Y,"Caps",48);else if(app.shift())line(px,184,writer::STATUS_Y,"Shift",48);
   }
-  auto& text=app.text();auto& layout=app.layout();const char* s=text.data();
+  auto& text=app.text();auto& layout=app.layout();
   int last=app.viewport()+app.view_rows();if(last>layout.rows())last=layout.rows();
-  for(int row=app.viewport();row<last;++row){int x=8,y=writer::TEXT_Y+(row-app.viewport())*writer::TEXT_PITCH;std::size_t end=row+1<layout.rows()?layout.row_start(row+1):text.bytes();
-   for(std::size_t p=layout.row_content_start(text,row);p<end;){char ch[5];p=writer::Layout::character(s,p,ch);if(ch[0]=='\n')break;int w=layout.width(ch);if(w&&ch[0]!='\t')line(px,x,y,ch,228-x);x+=w;}
+  for(int row=app.viewport();row<last;++row){int x=8,y=writer::TEXT_Y+(row-app.viewport())*writer::TEXT_PITCH;std::size_t end=layout.row_end(row);
+   for(std::size_t p=layout.row_content_start(text,row);p<end;){char ch[5];p=writer::Layout::character(text,p,ch);if(ch[0]=='\n')break;int w=layout.width(ch);if(w&&ch[0]!='\t')line(px,x,y,ch,228-x);x+=w;}
   }
   auto caret=layout.position(text,text.caret_byte());if(app.caret_visible()&&caret.row>=app.viewport()&&caret.row<last){int x=8+caret.x,y=writer::TEXT_Y+(caret.row-app.viewport())*writer::TEXT_PITCH;for(int j=0;j<16;++j)pixel(px,x,y+j);}
   break;}

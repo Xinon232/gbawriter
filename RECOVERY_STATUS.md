@@ -12,7 +12,7 @@
 
 - Host-testable core, layout, storage and application controller; actual Butano/SuperFW UI adapter with twelve complete help pages, status strip and GBA-safe graphical caret.
 - UTF-8/capacity protection, all letter/SELECT cycles and uppercase counterparts, continuous-hold G/V, whole-frame input precedence, deferred START commands, held navigation, capitalization redraw/retention and rejected-edit rollback.
-- Fixed 24 KiB contiguous editable buffer and bounded visual-row index. Large app/storage objects explicitly in `.sbss` EWRAM.
+- Piece-table document over the opened file (streamed from SD, no size limit), 64 KiB unsaved typed-text buffer and a windowed visual-row index. Large app/storage objects explicitly in `.sbss` EWRAM.
 - Safe New File no-clobber, chronological dates, 32-entry rescanned load batches without a 32-file directory cap, exact UTF-8 load/save, checked transient staging/backup/manifest and conservative ambiguous recovery.
 - Allocation-free bounded Writer formatting/strict manifest parser fixes actual normal-build linker failure caused by unavailable libc snprintf/sscanf.
 - Runner now executes writer app/layout/storage/frames/format as well as core, differential 100,000-operation test, actual 77-glyph rendering, all 72 help-line coverage/width checks, memory-gate rejection tests, and preserved reader suites.
@@ -31,7 +31,7 @@ Failed FatFS renames can leave canonical + `.gwt` cross-linked. Never unlink eit
 - **Physical GBA + Supercard SD verification remains undone.** Thus the real-hardware safety acceptance criterion is not satisfied. Do not present software QA as proof of safe real diary storage.
 - Final source is frozen for hash-bound emulator verification, independent review, and GitHub CI/publication. Consult GitHub for current publication state; this source checkpoint is not proof that a release has been published.
 - Emulator editor fixture QA is debugger-seeded and explicitly not a storage workflow. Parent maintains those evidence reports separately.
-- Known limitations: 24 KiB, codepoints not graphemes, character wrapping, fixed-width tabs, LF new input/retained CRLF+BOM, unknown glyphs not guaranteed, long SD timeout, conservative manual recovery, no full-disk/torn-sector/persistent-fault/FAT32 fault sweep or sustained hardware performance proof.
+- Known limitations: 64 KiB unsaved typed text per save, codepoints not graphemes, character wrapping, fixed-width tabs, LF new input/retained CRLF+BOM, unknown glyphs not guaranteed, long SD timeout, conservative manual recovery, no full-disk/torn-sector/persistent-fault/FAT32 fault sweep or sustained hardware performance proof.
 
 ## Reproduce / external handoff
 

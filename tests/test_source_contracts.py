@@ -13,7 +13,9 @@ assert 'section(".sbss")' in main  # integrated app + storage must be in EWRAM
 assert 'volatile uint16_t' in main  # caret must use GBA-safe halfword writes
 assert 'CHECKING SD' in main
 assert 'HELP_PAGES' in main
-assert "TEXT_CAPACITY = 24 * 1024" in header
+# Files stream from SD; only unsaved typed text is capped in RAM.
+assert "TEXT_CAPACITY = 64 * 1024" in header and "class TextSource" in header
+assert "MAX_ROWS" in (root / "include/writer_layout.h").read_text()
 assert "parse_diary_name" in core and "next_day" in core
 assert "alternate_letter" in core and "SELECT" in core
 assert "TARGET      :=  gbawriter" in make

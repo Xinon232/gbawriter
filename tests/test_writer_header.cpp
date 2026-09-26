@@ -77,7 +77,7 @@ static void editor_positions(){
   draw_text_idx8_bus16_range("bbbbbbbbbb",expected+18*240+8,0,220,240,1);
   for(int y=18;y<34;++y)expected[y*240+8+font_width("bbbbbbbbbb")]=1;
   assert(std::memcmp(actual,expected,sizeof(actual))==0);
-  assert(std::string(app.text().data())==document);
+  assert(std::string(app.text().str().c_str())==document);
   // Exact production framebuffer: overflowed inter-word separators have no ink
   // or advance; explicit-newline and document-start indentation remains visible.
   prefix.clear();
@@ -93,7 +93,7 @@ static void editor_positions(){
     draw_text_idx8_bus16_range("  b",expected+36*240+8,0,220,240,1);
     for(int y=36;y<52;++y)expected[y*240+8+font_width("  b")]=1;
     assert(std::memcmp(actual,expected,sizeof(actual))==0);
-    assert(std::string(app.text().data())==document);
+    assert(std::string(app.text().str().c_str())==document);
     auto pos=app.layout().position(app.text(),prefix.size()+std::strlen(separators));
     assert(pos.row==1 && pos.x==0);
   }

@@ -40,7 +40,7 @@ int main() {
   assert(std::filesystem::exists(root + "/gbawriter/10082026.txt"));
   a.frame(key(Button::UP) | key(Button::B));
   a.frame(0);
-  assert(!strcmp(a.text().data(), "a"));
+  assert(!strcmp(a.text().str().c_str(), "a"));
   a.frame(key(Button::START) | key(Button::B));
   a.frame(0);
   assert(a.scene() == Scene::MENU);
@@ -51,7 +51,7 @@ int main() {
   tap(Button::A);
   assert(a.scene() == Scene::LOAD);
   tap(Button::A);
-  assert(a.scene() == Scene::EDITOR && std::string(a.text().data()) == "a");
+  assert(a.scene() == Scene::EDITOR && std::string(a.text().str().c_str()) == "a");
   tap(Button::A);
   storage.fault_at(1);
   a.frame(key(Button::START) | key(Button::B));
@@ -59,14 +59,14 @@ int main() {
   assert(a.scene() == Scene::ERROR);
   tap(Button::A);
   assert(a.scene() == Scene::EDITOR);
-  assert(a.text().dirty() && std::string(a.text().data()) == "a ");
+  assert(a.text().dirty() && std::string(a.text().str().c_str()) == "a ");
   storage.fault_at(-1);
   std::string full(TEXT_CAPACITY, 'x');
   a.text().set_text(full.c_str());
   a.frame(key(Button::SELECT));
   a.frame(key(Button::SELECT) | key(Button::UP));
   a.frame(0);
-  assert(std::string(a.text().data()) == full);
+  assert(std::string(a.text().str().c_str()) == full);
   // Holding navigation repeats, never newline/text; activity keeps caret solid.
   a.text().set_text(std::string(200, 'a').c_str());
   a.layout().reflow(a.text(),220,width);
@@ -94,29 +94,29 @@ int main() {
   a.text().set_text(std::string(TEXT_CAPACITY-1,'x').c_str());a.layout().reflow(a.text(),220,width);
   a.frame(key(Button::SELECT));a.frame(key(Button::SELECT)|key(Button::RIGHT));
   a.frame(key(Button::SELECT)|key(Button::RIGHT)|key(Button::A));a.frame(0);
-  assert(a.shift() && a.text().data()[TEXT_CAPACITY-1]=='(');
+  assert(a.shift() && a.text().at(TEXT_CAPACITY-1)=='(');
   // Held spaces stop safely at capacity without consuming Shift.
   a.frame(0);a.text().set_text(std::string(TEXT_CAPACITY-2,'x').c_str());
   a.layout().reflow(a.text(),220,width);
   for(int i=0;i<100;++i)a.frame(key(Button::A));
   assert(a.text().bytes()==TEXT_CAPACITY && a.shift() && a.caret_visible());
-  assert(a.text().data()[TEXT_CAPACITY-2]==' ' && a.text().data()[TEXT_CAPACITY-1]==' ');
+  assert(a.text().at(TEXT_CAPACITY-2)==' ' && a.text().at(TEXT_CAPACITY-1)==' ');
   a.frame(0);
   // UTF-8 backspace repeats at complete codepoint boundaries, including empty.
   a.text().set_text("aé€😀");a.layout().reflow(a.text(),220,width);
-  a.frame(key(Button::B));assert(std::string(a.text().data())=="aé€");
+  a.frame(key(Button::B));assert(std::string(a.text().str().c_str())=="aé€");
   for(int i=1;i<24;++i)a.frame(key(Button::B));
-  assert(std::string(a.text().data())=="aé€");
-  a.frame(key(Button::B));assert(std::string(a.text().data())=="aé");
+  assert(std::string(a.text().str().c_str())=="aé€");
+  a.frame(key(Button::B));assert(std::string(a.text().str().c_str())=="aé");
   for(int i=0;i<5;++i)a.frame(key(Button::B));
-  assert(std::string(a.text().data())=="a");
+  assert(std::string(a.text().str().c_str())=="a");
   for(int i=0;i<100;++i)a.frame(key(Button::B));
   assert(!a.text().bytes() && !a.text().caret_byte() && a.shift());
   a.frame(0);a.text().set_text("aé€");a.text().set_caret(3);
   a.layout().reflow(a.text(),220,width);
   for(int i=0;i<100;++i)a.frame(key(Button::B));
-  assert(std::string(a.text().data())=="€" && !a.text().caret_byte());
-  a.frame(0);a.frame(key(Button::A));assert(std::string(a.text().data())==" €");
+  assert(std::string(a.text().str().c_str())=="€" && !a.text().caret_byte());
+  a.frame(0);a.frame(key(Button::A));assert(std::string(a.text().str().c_str())==" €");
   a.frame(0);
   std::filesystem::remove_all(root);
   std::cout

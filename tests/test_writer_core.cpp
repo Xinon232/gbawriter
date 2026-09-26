@@ -30,10 +30,10 @@ static void text() {
   assert(t.set_text("aé"));
   t.move_left();
   assert(t.backspace());
-  assert(!std::strcmp(t.data(), "é"));
+  assert(!std::strcmp(t.str().c_str(), "é"));
   t.move_right();
   assert(t.insert("ß"));
-  assert(!std::strcmp(t.data(), "éß"));
+  assert(!std::strcmp(t.str().c_str(), "éß"));
 }
 static void input() {
   InputState s;
@@ -192,7 +192,7 @@ static void bounded_text() {
   std::string full(TEXT_CAPACITY, 'x');
   assert(t.set_text(full.c_str()));
   assert(!t.replace_before_caret("é"));
-  assert(!std::strcmp(t.data(), full.c_str()));
+  assert(!std::strcmp(t.str().c_str(), full.c_str()));
   assert(!t.dirty());
   assert(!t.set_text("\xc0\xaf"));
   assert(!t.insert("\xed\xa0\x80"));
@@ -206,7 +206,7 @@ static void bounded_text() {
   t.move_right();
   assert(t.caret_byte() == 6);
   t.backspace();
-  assert(!std::strcmp(t.data(), "éz"));
+  assert(!std::strcmp(t.str().c_str(), "éz"));
   assert(!valid_date({1, 1, 10000}));
 }
 int main() {

@@ -24,18 +24,37 @@ void Application::error(StoreResult r) {
 void Application::editor() {
   _input = InputState();
   _clock = CaretClock();
-  _viewport = 0;
   _message = "";
-  _layout.reflow(_text, 220, _measure);
+  _top = _text.caret_byte();
+  _layout.reflow(_text, 220, _measure, _top);
+  _top = _layout.row_start(_layout.row_of(_top));
   ensure_visible();
   change(Scene::EDITOR);
 }
+// Rows exist only around the view: lay them out again when the text changed
+// or the view neared the window edge.
+void Application::cover() {
+  if (!_layout.covers(_text, _top))
+    _layout.reflow(_text, 220, _measure, _top);
+}
 void Application::ensure_visible() {
+  cover();
   int row = _layout.position(_text, _text.caret_byte()).row;
-  if (row < _viewport)
-    _viewport = row;
-  if (row >= _viewport + view_rows())
-    _viewport = row - view_rows() + 1;
+  int top = _layout.row_of(_top);
+  if (row < top)
+    top = row;
+  if (row >= top + view_rows())
+    top = row - view_rows() + 1;
+  _top = _layout.row_start(top);
+  cover();
+  check_read();
+}
+// A failed SD read of the open file cannot show text; report it (text kept).
+void Application::check_read() {
+  if (_text.read_failed() && _scene == Scene::EDITOR) {
+    _text.clear_read_failed();
+    error(StoreResult::IO_ERROR);
+  }
 }
 void Application::adjust_date(int delta) {
   if (_field == 0) {
@@ -68,6 +87,7 @@ void Application::consume(InputEvent e) {
   if (_scene != Scene::EDITOR)
     return;
   _clock.tick(true);
+  cover();
   using K = EventKind;
   bool edit = false, ok = true;
   switch (e.kind) {
@@ -116,16 +136,18 @@ void Application::consume(InputEvent e) {
   case K::MOVE_DOWN:
     _layout.move(_text, 1);
     break;
-  case K::PAGE_PREV:
+  case K::PAGE_PREV: {
+    int top = _layout.row_of(_top);
     _layout.move(_text, -view_rows());
-    _viewport = _viewport >= view_rows() ? _viewport - view_rows() : 0;
+    _top = _layout.row_start(top >= view_rows() ? top - view_rows() : 0);
     break;
-  case K::PAGE_NEXT:
+  }
+  case K::PAGE_NEXT: {
+    int top = _layout.row_of(_top) + view_rows();
     _layout.move(_text, view_rows());
-    _viewport += view_rows();
-    if (_viewport >= _layout.rows())
-      _viewport = _layout.rows() - 1;
+    _top = _layout.row_start(top < _layout.rows() ? top : _layout.rows() - 1);
     break;
+  }
   case K::SAVE:
   case K::SAVE_MENU: {
     auto recovery = _storage.recover(_storage.current_name());
@@ -152,11 +174,15 @@ void Application::consume(InputEvent e) {
   }
   if (!ok) {
     _input.reject_edit();
-    _message = "BUFFER FULL - TEXT KEPT";
+    // Unsaved typed text is full (or the edit list is): saving frees both.
+    _message = "BUFFER FULL - SAVE";
     _message_frames = 180;
   }
-  if (edit)
-    _layout.reflow(_text, 220, _measure);
+  if (edit) {
+    if (_text.last_edit_start() < _top)
+      _top = _text.last_edit_start();
+    _layout.reflow(_text, 220, _measure, _top);
+  }
   ensure_visible();
   _redraw = true;
 }

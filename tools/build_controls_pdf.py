@@ -67,7 +67,7 @@ while i < len(lines):
         story.append(Paragraph(markup(line), styles['BodyTextUTF']))
     i += 1
 story.extend([Paragraph('Storage and attribution', styles['SectionUTF']),
-    Paragraph('The document limit is 24 KiB of UTF-8 text. Saves change only the opened TXT file; no permanent .sav or settings file is used. Temporary .gwt, .gwb and .gwi recovery files may remain after interrupted or failed saves. Do not delete them on the original card: back up the card and consult the README recovery instructions. There is no undo/redo, autosave or discard shortcut.', styles['BodyTextUTF']),
+    Paragraph('Files have no size limit: they stay on the SD card and only changes use RAM. Up to 64 KiB of typed text can be unsaved at once; when the bar shows BUFFER FULL - SAVE, save to continue (the text is kept). Saving a large file takes longer. Saves change only the opened TXT file; no permanent .sav or settings file is used. Temporary .gwt, .gwb and .gwi recovery files may remain after interrupted or failed saves. Do not delete them on the original card: back up the card and consult the README recovery instructions. There is no undo/redo, autosave or discard shortcut.', styles['BodyTextUTF']),
     Paragraph('Made by Halim Jarrar · (C) 2026 · halim-jarrar.de · monday@halim-jarrar.de. Based on GBAReader, SuperFW, Butano, FatFS and miniz; credits and font/vendor notices remain in the source. Fonts: SuperFW software font renderer; UNSCII fonts (viznut.fi/unscii, inherited source marked GPL); Unifont-derived Hangul blocks. Original font notices remain in references/superfw/res/fonts. Application source: GNU GPL v3. See LICENSE and README for full attribution.', styles['BodyTextUTF'])])
 
 def footer(canvas, doc):

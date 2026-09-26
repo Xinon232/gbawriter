@@ -35,7 +35,7 @@ int main() {
   Date d = s.proposed_date();
   assert(d.day == 22 && d.month == 10 && d.year == 2001);
   assert(s.load("21102001.txt", t) == StoreResult::OK);
-  assert(!strcmp(t.data(), "untouched"));
+  assert(!strcmp(t.str().c_str(), "untouched"));
   assert(t.set_text("é ä ç ñ ø œ ß ž"));
   t.insert("\n");
   assert(s.save(t) == StoreResult::OK);
@@ -46,7 +46,7 @@ int main() {
     assert(s.save(t) == StoreResult::OK);
   }
   assert(s.load("21102001.txt", t) == StoreResult::OK);
-  assert(!strcmp(t.data(), "é ä ç ñ ø œ ß ž\nmoremoremore"));
+  assert(!strcmp(t.str().c_str(), "é ä ç ñ ø œ ß ž\nmoremoremore"));
   for (auto &e : std::filesystem::directory_iterator(root + "/gbawriter"))
     assert(e.path().extension() == ".txt" || e.path().extension() == ".TXT");
   // Every filesystem operation can fail; successful recovery exposes a whole
@@ -70,7 +70,7 @@ int main() {
     auto result = s.save(t);
     assert(result != StoreResult::OK);
     assert(t.dirty());
-    assert(std::string(t.data()) == edited + "!");
+    assert(std::string(t.str().c_str()) == edited + "!");
     s.fault_at(-1);
     auto recovered=s.recover("21102001.txt");
     assert(recovered==StoreResult::OK || recovered==StoreResult::RECOVERY_NEEDED);

@@ -37,6 +37,41 @@ bool valid_utf8(const char *s, std::size_t n) {
   }
   return true;
 }
+bool Utf8Stream::feed(const char *s, std::size_t n) {
+  for (std::size_t i = 0; _ok && i < n; ++i) {
+    unsigned c = static_cast<unsigned char>(s[i]);
+    if (_more) {
+      if ((c & 0xc0) != 0x80) {
+        _ok = false;
+        break;
+      }
+      _value = (_value << 6) | (c & 63);
+      if (!--_more && (_value < _minimum || _value > 0x10ffff ||
+                       (_value >= 0xd800 && _value <= 0xdfff)))
+        _ok = false;
+      continue;
+    }
+    if (!c)
+      _ok = false;
+    else if (c < 128)
+      continue;
+    else if (c >= 0xc2 && c <= 0xdf) {
+      _more = 1;
+      _value = c & 31;
+      _minimum = 0x80;
+    } else if (c >= 0xe0 && c <= 0xef) {
+      _more = 2;
+      _value = c & 15;
+      _minimum = 0x800;
+    } else if (c >= 0xf0 && c <= 0xf4) {
+      _more = 3;
+      _value = c & 7;
+      _minimum = 0x10000;
+    } else
+      _ok = false;
+  }
+  return _ok;
+}
 namespace {
 bool leap(int y) { return y % 4 == 0 && (y % 100 != 0 || y % 400 == 0); }
 int days(int m, int y) {
@@ -126,92 +161,240 @@ bool can_create_new(const char *n, const char *const *names, int count) {
       return false;
   return true;
 }
-TextModel::TextModel()
-    : _gap_begin(0), _gap_end(TEXT_CAPACITY), _size(0), _dirty(false) {
-  _storage[0] = 0;
-}
+TextModel::TextModel() {}
 std::size_t TextModel::bytes() const { return _size; }
-std::size_t TextModel::caret_byte() const { return _gap_begin; }
+std::size_t TextModel::caret_byte() const { return _caret; }
 bool TextModel::dirty() const { return _dirty; }
 void TextModel::mark_saved() { _dirty = false; }
-const char *TextModel::data() {
-  _storage[_size] = 0;
-  return _storage;
+void TextModel::edited(std::size_t start) {
+  _dirty = true;
+  _edit_start = start;
+  ++_revision;
+  _hint = 0;
+  _hint_start = 0;
 }
-void TextModel::move_gap(std::size_t p) {
-  if (p > _size)
-    p = _size;
-  _gap_begin = p;
+// Piece holding byte p (p < size); `start` is its first document byte.
+// Lookups near the previous one (the caret, the row being drawn) are short.
+int TextModel::find(std::size_t p, std::size_t &start) const {
+  int i = _hint;
+  std::size_t s = _hint_start;
+  if (i >= _count || p < s) {
+    i = 0;
+    s = 0;
+  }
+  while (i < _count && p >= s + _pieces[i].length) {
+    s += _pieces[i].length;
+    ++i;
+  }
+  if (i < _count) {
+    _hint = i;
+    _hint_start = s;
+  }
+  start = s;
+  return i;
 }
-std::size_t TextModel::previous_utf8(const char *s, std::size_t p) {
-  if (!p)
-    return 0;
-  do {
-    --p;
-  } while (p && (static_cast<unsigned char>(s[p]) & 0xC0) == 0x80);
-  return p;
+char TextModel::at(std::size_t p) const {
+  char c = 0;
+  return copy(p, &c, 1) == 1 ? c : 0;
 }
-std::size_t TextModel::next_utf8(const char *s, std::size_t n, std::size_t p) {
-  if (p >= n)
-    return n;
-  int k = (static_cast<unsigned char>(s[p]) < 0x80)           ? 1
-          : (static_cast<unsigned char>(s[p]) & 0xE0) == 0xC0 ? 2
-          : (static_cast<unsigned char>(s[p]) & 0xF0) == 0xE0 ? 3
-          : (static_cast<unsigned char>(s[p]) & 0xF8) == 0xF0 ? 4
-                                                              : 1;
-  return p + k <= n ? p + k : p + 1;
+std::size_t TextModel::copy(std::size_t p, char *out, std::size_t n) const {
+  std::size_t done = 0;
+  while (done < n && p < _size) {
+    std::size_t start = 0;
+    int i = find(p, start);
+    const Piece &piece = _pieces[i];
+    std::size_t offset = p - start, take = piece.length - offset;
+    if (take > n - done)
+      take = n - done;
+    if (piece.added)
+      std::memcpy(out + done, _add + piece.start + offset, take);
+    else if (!_source || !_source->read(piece.start + offset, out + done, take)) {
+      _failed = true;
+      break;
+    }
+    done += take;
+    p += take;
+  }
+  return done;
 }
 bool TextModel::set_text(const char *s) {
   std::size_t n = std::strlen(s);
   if (n > TEXT_CAPACITY || !valid_utf8(s, n))
     return false;
-  std::memcpy(_storage, s, n);
-  _size = n;
-  _gap_begin = n;
-  _gap_end = TEXT_CAPACITY;
+  std::memcpy(_add, s, n);
+  _source = nullptr;
+  _add_used = n;
+  _count = n ? 1 : 0;
+  _pieces[0] = {0, uint32_t(n), true};
+  _size = _caret = n;
   _dirty = false;
+  _failed = false;
+  edited(0);
+  _dirty = false;
+  return true;
+}
+void TextModel::open(const TextSource *source) {
+  _source = source;
+  _add_used = 0;
+  _size = source ? source->size() : 0;
+  _count = _size ? 1 : 0;
+  _pieces[0] = {0, uint32_t(_size), false};
+  _caret = _size; // As before: open with the caret at the end.
+  _failed = false;
+  edited(0);
+  _dirty = false;
+}
+bool TextModel::insert_at(std::size_t p, const char *s, std::size_t n) {
+  if (!n)
+    return true;
+  if (n > TEXT_CAPACITY - _add_used)
+    return false;
+  std::size_t start = 0;
+  int i = p < _size ? find(p, start) : _count;
+  if (p >= _size)
+    start = _size;
+  const uint32_t added = uint32_t(_add_used);
+  if (p == start && i > 0 && _pieces[i - 1].added &&
+      _pieces[i - 1].start + _pieces[i - 1].length == added) {
+    // Typing on: the previous piece ends at the typed-text tail, so grow it.
+    _pieces[i - 1].length += uint32_t(n);
+  } else if (p == start) {
+    if (_count + 1 > MAX_PIECES)
+      return false;
+    std::memmove(_pieces + i + 1, _pieces + i, sizeof(Piece) * (_count - i));
+    _pieces[i] = {added, uint32_t(n), true};
+    ++_count;
+  } else {
+    if (_count + 2 > MAX_PIECES)
+      return false;
+    Piece left = _pieces[i], right = left;
+    left.length = uint32_t(p - start);
+    right.start += left.length;
+    right.length -= left.length;
+    std::memmove(_pieces + i + 3, _pieces + i + 1, sizeof(Piece) * (_count - i - 1));
+    _pieces[i] = left;
+    _pieces[i + 1] = {added, uint32_t(n), true};
+    _pieces[i + 2] = right;
+    _count += 2;
+  }
+  std::memcpy(_add + _add_used, s, n);
+  _add_used += n;
+  _size += n;
+  return true;
+}
+bool TextModel::erase(std::size_t p, std::size_t n) {
+  // One character at most; a split needs one free piece.
+  while (n) {
+    std::size_t start = 0;
+    int i = find(p, start);
+    Piece &piece = _pieces[i];
+    std::size_t offset = p - start, take = piece.length - offset;
+    if (take > n)
+      take = n;
+    const bool tail = offset + take == piece.length;
+    if (offset && !tail) {
+      if (_count + 1 > MAX_PIECES)
+        return false;
+      std::memmove(_pieces + i + 2, _pieces + i + 1, sizeof(Piece) * (_count - i - 1));
+      Piece right = piece;
+      right.start += uint32_t(offset + take);
+      right.length -= uint32_t(offset + take);
+      piece.length = uint32_t(offset);
+      _pieces[i + 1] = right;
+      ++_count;
+    } else {
+      // Deleting just-typed text from the end of the typed buffer frees it.
+      if (tail && piece.added && piece.start + piece.length == _add_used)
+        _add_used -= take;
+      if (!offset)
+        piece.start += uint32_t(take);
+      piece.length -= uint32_t(take);
+      if (!piece.length) {
+        std::memmove(_pieces + i, _pieces + i + 1, sizeof(Piece) * (_count - i - 1));
+        --_count;
+      }
+    }
+    _hint = 0;
+    _hint_start = 0;
+    _size -= take;
+    n -= take;
+  }
   return true;
 }
 bool TextModel::insert(const char *s) {
   std::size_t n = std::strlen(s);
-  if (n > TEXT_CAPACITY - _size || !valid_utf8(s, n))
+  if (!valid_utf8(s, n) || !insert_at(_caret, s, n))
     return false;
-  std::memmove(_storage + _gap_begin + n, _storage + _gap_begin,
-               _size - _gap_begin);
-  std::memcpy(_storage + _gap_begin, s, n);
-  _gap_begin += n;
-  _size += n;
-  _dirty = true;
+  edited(_caret);
+  _caret += n;
   return true;
 }
 bool TextModel::replace_before_caret(const char *s) {
-  std::size_t n = std::strlen(s),
-              removed = _gap_begin - previous_utf8(data(), _gap_begin);
-  if (n > TEXT_CAPACITY - _size + removed || !valid_utf8(s, n))
+  std::size_t n = std::strlen(s), p = previous_utf8(_caret), removed = _caret - p;
+  if (!valid_utf8(s, n))
     return false;
-  if (removed)
-    backspace();
-  return insert(s);
-}
-bool TextModel::backspace() {
-  if (!_gap_begin)
+  char old[4];
+  if (removed > sizeof(old) || copy(p, old, removed) != removed)
     return false;
-  std::size_t p = previous_utf8(data(), _gap_begin);
-  std::memmove(_storage + p, _storage + _gap_begin, _size - _gap_begin);
-  _size -= (_gap_begin - p);
-  _gap_begin = p;
-  _dirty = true;
+  // Check room first so a refused replacement leaves the text unchanged.
+  std::size_t start = 0;
+  int i = removed ? find(p, start) : 0;
+  bool reclaim = removed && _pieces[i].added && p - start + removed == _pieces[i].length &&
+                 _pieces[i].start + _pieces[i].length == _add_used;
+  if (n > TEXT_CAPACITY - _add_used + (reclaim ? removed : 0) || _count + 3 > MAX_PIECES)
+    return false;
+  if (removed && !erase(p, removed))
+    return false;
+  _caret = p;
+  if (!insert_at(p, s, n)) {
+    insert_at(p, old, removed);
+    _caret = p + removed;
+    return false;
+  }
+  edited(p);
+  _caret = p + n;
   return true;
 }
-void TextModel::set_caret(std::size_t p) {
-  if(p>_size)p=_size;
-  while(p && p<_size && (static_cast<unsigned char>(_storage[p])&0xc0)==0x80)--p;
-  move_gap(p);
+bool TextModel::backspace() {
+  if (!_caret)
+    return false;
+  std::size_t p = previous_utf8(_caret);
+  if (!erase(p, _caret - p))
+    return false;
+  _caret = p;
+  edited(p);
+  return true;
 }
-void TextModel::move_left() { move_gap(previous_utf8(data(), _gap_begin)); }
-void TextModel::move_right() { move_gap(next_utf8(data(), _size, _gap_begin)); }
-void TextModel::move_home() { move_gap(0); }
-void TextModel::move_end() { move_gap(_size); }
+std::size_t TextModel::previous_utf8(std::size_t p) const {
+  if (!p)
+    return 0;
+  int steps = 0;
+  do {
+    --p;
+  } while (p && ++steps < 4 && (static_cast<unsigned char>(at(p)) & 0xC0) == 0x80);
+  return p;
+}
+std::size_t TextModel::next_utf8(std::size_t p) const {
+  if (p >= _size)
+    return _size;
+  unsigned c = static_cast<unsigned char>(at(p));
+  int k = c < 0x80 ? 1 : (c & 0xE0) == 0xC0 ? 2 : (c & 0xF0) == 0xE0 ? 3
+          : (c & 0xF8) == 0xF0 ? 4 : 1;
+  return p + k <= _size ? p + k : p + 1;
+}
+void TextModel::set_caret(std::size_t p) {
+  if (p > _size)
+    p = _size;
+  int steps = 0;
+  while (p && p < _size && steps++ < 3 &&
+         (static_cast<unsigned char>(at(p)) & 0xc0) == 0x80)
+    --p;
+  _caret = p;
+}
+void TextModel::move_left() { _caret = previous_utf8(_caret); }
+void TextModel::move_right() { _caret = next_utf8(_caret); }
+void TextModel::move_home() { _caret = 0; }
+void TextModel::move_end() { _caret = _size; }
 const char *alternate_letter(char b, int i) {
   static const char *const A[] = {"á", "ä", "à", "â", "ã", "å", "æ"};
   static const char *const C[] = {"ç", "č", "ć"};

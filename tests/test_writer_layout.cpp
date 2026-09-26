@@ -18,7 +18,7 @@ static void wrapping_edges() {
     layout.reflow(text, pixels, width);
     assert(calls <= int(text.bytes() * 2)); // linear, including oversized words
     assert(text.caret_byte() == 0 && text.dirty() == dirty);
-    assert(std::string(text.data()) == source);
+    assert(std::string(text.str().c_str()) == source);
     assert(layout.rows() == int(rows.size()));
     for (int row = 0; row < layout.rows(); ++row) {
       assert(layout.row_start(row) == rows[row]);
@@ -29,7 +29,7 @@ static void wrapping_edges() {
       for (std::size_t p = rows[row]; p < end;) {
         auto caret = layout.position(text, p);
         assert(caret.row == row && caret.x == x);
-        char ch[5]; p = Layout::character(text.data(), p, ch);
+        char ch[5]; p = Layout::character(text.str().c_str(), p, ch);
         if (p > layout.row_content_start(text,row) && ch[0] != '\n') x += layout.width(ch);
       }
       assert(x <= pixels);
@@ -43,7 +43,7 @@ static void wrapping_edges() {
       assert(layout.move(text, -1)); assert(text.caret_byte()==rows[row]);
     }
     assert(!layout.move(text, -1));
-    assert(std::string(text.data()) == source);
+    assert(std::string(text.str().c_str()) == source);
   };
   check("aa bbb", 24, {0,3});
   check("aa bb", 30, {0}); // exact fit
@@ -82,20 +82,26 @@ static void wrapping_edges() {
     text.set_caret(source.size()-1);text.move_left();text.move_right();
     assert(text.caret_byte()==source.size()-1);
     assert(text.backspace());source.erase(source.size()-2,1);
-    layout.reflow(text,24,width);assert(std::string(text.data())==source);
+    layout.reflow(text,24,width);assert(std::string(text.str().c_str())==source);
     assert(layout.position(text,text.caret_byte()).x==0);
   }
   check("\n", 24, {0,1});
   std::string max_word(TEXT_CAPACITY, 'a');
   text.set_text(max_word.c_str()); calls=0; layout.reflow(text,220,width);
-  assert(calls == int(TEXT_CAPACITY*2));
-  assert(std::string(text.data()) == max_word);
+  // An oversized word stops being measured once it is wider than the row.
+  assert(calls <= int(TEXT_CAPACITY*2));
+  assert(std::string(text.str().c_str()) == max_word);
+  // Rows exist only for a window around the caret: every row is one byte here.
   std::string newlines(TEXT_CAPACITY, '\n');
-  text.set_text(newlines.c_str()); layout.reflow(text,220,width);
-  assert(layout.rows()==int(TEXT_CAPACITY+1));
-  for (std::size_t p=0;p<=TEXT_CAPACITY;++p) {
-    assert(layout.row_start(int(p))==p);
-    assert(layout.position(text,p).row==int(p));
+  text.set_text(newlines.c_str());
+  for (std::size_t caret : {std::size_t(0), std::size_t(5), std::size_t(1000), TEXT_CAPACITY / 2, TEXT_CAPACITY}) {
+    text.set_caret(caret); layout.reflow(text,220,width);
+    assert(layout.rows() <= Layout::MAX_ROWS);
+    int row = layout.row_of(caret);
+    assert(layout.row_start(row)==caret && layout.position(text,caret).row==row);
+    assert(row >= (caret < std::size_t(Layout::MARGIN_ROWS) ? int(caret) : Layout::MARGIN_ROWS));
+    assert(layout.rows() - 1 - row >= (caret == TEXT_CAPACITY ? 0 : Layout::MARGIN_ROWS));
+    for (int r = 0; r < layout.rows(); ++r) assert(layout.row_start(r)==layout.row_start(0)+std::size_t(r));
   }
   text.set_text("aa bbb\naa bbb");layout.reflow(text,24,width);text.set_caret(1);
   assert(layout.move(text,1) && text.caret_byte()==4);
@@ -104,15 +110,46 @@ static void wrapping_edges() {
   text.set_caret(3);text.insert("i");layout.reflow(text,24,width);
   assert(layout.row_start(1)==3 && layout.position(text,text.caret_byte()).x==2);
   text.backspace();layout.reflow(text,24,width);
-  assert(std::string(text.data())=="aa bbb\naa bbb" && layout.row_start(1)==3);
+  assert(std::string(text.str().c_str())=="aa bbb\naa bbb" && layout.row_start(1)==3);
+}
+// Windows laid out around different positions agree on every row start they
+// share: each starts at a real line start, so wrapping matches the whole text.
+static void windows_agree() {
+  std::string doc;
+  unsigned seed = 7;
+  while (doc.size() < 48 * 1024) {
+    seed = seed * 1103515245u + 12345u;
+    unsigned k = (seed >> 16) % 23;
+    if (k == 0) doc += "\n\n";
+    else if (k == 1) doc += "\n";
+    else if (k == 2) doc += std::string(40, 'w') + " ";
+    else if (k == 3) doc += "\t";
+    else doc += std::string(1 + k % 7, char('a' + k)) + (k % 5 ? " " : "  ");
+  }
+  TextModel text; Layout a, b;
+  assert(text.set_text(doc.c_str()));
+  for (std::size_t step = 0; step + 4096 < doc.size(); step += 1777) {
+    text.set_caret(step); a.reflow(text, 220, width);
+    text.set_caret(step + 300); b.reflow(text, 220, width);
+    std::size_t low = b.row_start(0), high = a.row_end(a.rows() - 1);
+    int shared = 0;
+    for (int r = 0; r < a.rows(); ++r) {
+      std::size_t start = a.row_start(r);
+      if (start < low || start >= high || start > b.row_end(b.rows() - 1)) continue;
+      assert(b.row_start(b.row_of(start)) == start);
+      ++shared;
+    }
+    assert(shared > 0);
+  }
 }
 int main() {
+  windows_agree();
   {
     TextModel text; Layout layout;
     text.set_text("aaaa b"); layout.reflow(text,24,width);
     assert(layout.rows()==2 && layout.row_start(1)==4);
     assert(layout.position(text,5).x==0 && "soft-wrap separator must not indent word");
-    assert(std::string(text.data())=="aaaa b");
+    assert(std::string(text.str().c_str())=="aaaa b");
   }
   wrapping_edges();
   TextModel t;
@@ -134,7 +171,7 @@ int main() {
   assert(t.caret_byte() == 7);
   assert(l.move(t, -1));
   assert(t.caret_byte() == 4);
-  assert(!strcmp(t.data(), "aébc\nx\n\n"));
+  assert(!strcmp(t.str().c_str(), "aébc\nx\n\n"));
   t.set_text("aii\nx\naii");
   l.reflow(t, 20, width);
   t.move_home();
@@ -148,7 +185,7 @@ int main() {
   l.reflow(t, 24, width);
   assert(l.rows() == 2 && l.row_start(1) == 3);
   assert(l.position(t, 3).row == 1 && l.position(t, 3).x == 0);
-  assert(!strcmp(t.data(), "aa bbb"));
+  assert(!strcmp(t.str().c_str(), "aa bbb"));
   CaretClock c;
   for (int i = 0; i < 60; ++i) {
     assert(c.visible());

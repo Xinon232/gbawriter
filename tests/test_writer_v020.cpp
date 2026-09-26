@@ -46,17 +46,17 @@ static void toggle(){
  bool visible=true;
  for(bool dirty:{false,true})for(int order=0;order<3;++order)for(int release=0;release<3;++release){
   a.text().set_text("originaléTAIL");a.text().set_caret(10);if(dirty){a.text().insert("x");}
-  std::string original=a.text().data();auto caret=a.text().caret_byte();auto ops=storage.operations();
+  std::string original=a.text().str().c_str();auto caret=a.text().caret_byte();auto ops=storage.operations();
   if(order==1)a.frame(start);
   if(order==2){a.frame(select);a.frame(select|key(Button::UP)|key(Button::B));}
   a.frame(start|select);visible=!visible;assert(bar(a,0)==visible);
-  assert(std::string(a.text().data())==original && a.text().caret_byte()==caret && a.text().dirty()==dirty);
+  assert(std::string(a.text().str().c_str())==original && a.text().caret_byte()==caret && a.text().dirty()==dirty);
   for(int i=0;i<80;++i)a.frame(start|select|key(Button::A)|key(Button::R));
   if(release==1)a.frame(start|key(Button::B));
   if(release==2)a.frame(select|key(Button::UP)|key(Button::B));
   a.frame(0);assert(bar(a,0)==visible);
   assert(a.scene()==Scene::EDITOR && storage.operations()==ops);
-  assert(std::string(a.text().data())==original && a.text().caret_byte()==caret && a.text().dirty()==dirty);
+  assert(std::string(a.text().str().c_str())==original && a.text().caret_byte()==caret && a.text().dirty()==dirty);
   assert(!a.shift()&&!a.caps());
  }
  // A rejected SELECT insertion must never delete preceding text.
@@ -66,15 +66,15 @@ static void toggle(){
  // Cancelling an alphabetic provisional must retain one-shot Shift.
  a.text().set_text("ok");tap(Button::R);assert(a.shift());
  a.frame(select);a.frame(select|key(Button::UP)|key(Button::B));a.frame(start|select);a.frame(0);
- assert(a.shift()&&!strcmp(a.text().data(),"ok")&&!a.text().dirty());
+ assert(a.shift()&&!strcmp(a.text().str().c_str(),"ok")&&!a.text().dirty());
  // A committed SELECT character is no longer provisional.
- tap(Button::SELECT);std::string committed=a.text().data();
- a.frame(start|select);a.frame(0);assert(std::string(a.text().data())==committed);
+ tap(Button::SELECT);std::string committed=a.text().str().c_str();
+ a.frame(start|select);a.frame(0);assert(std::string(a.text().str().c_str())==committed);
  // Rearm when chord buttons release, even with an unrelated direction held.
  bool before=bar(a,0);a.frame(start|select|key(Button::UP));assert(bar(a,0)!=before);
  a.frame(key(Button::UP));a.frame(start|select|key(Button::UP));assert(bar(a,0)==before);
  a.frame(key(Button::UP));a.frame(key(Button::UP)|key(Button::B));a.frame(0);
- assert(std::string(a.text().data())==committed+"A");
+ assert(std::string(a.text().str().c_str())==committed+"A");
  // The chord is editor-only; menu SELECT must still open help.
  Application menu(storage,width);menu.boot();menu.frame(start|select);assert(menu.scene()==Scene::HELP&&bar(menu,0));
  std::filesystem::remove_all(root);
@@ -129,14 +129,14 @@ static void select_release_save_feedback(){
   Storage storage(root.c_str());Application a(storage,width);a.boot();
   auto tap=[&](unsigned mask){a.frame(mask);a.frame(0);};
   tap(key(Button::A));tap(key(Button::A));assert(a.scene()==Scene::EDITOR);
-  a.frame(key(Button::SELECT));assert(!strcmp(a.text().data(),"."));
+  a.frame(key(Button::SELECT));assert(!strcmp(a.text().str().c_str(),"."));
   unsigned save=key(Button::START)|key(command);
   assert(a.save_feedback(save) && "SELECT release must not hide fresh save feedback");
   auto operations=storage.operations();
   a.frame(save);a.frame(0);
   assert(storage.operations()>operations && !a.text().dirty());
   assert(a.scene()==(command==Button::A?Scene::EDITOR:Scene::MENU));
-  assert(!strcmp(a.text().data(),"."));
+  assert(!strcmp(a.text().str().c_str(),"."));
   std::ifstream file(root+"/gbawriter/"+storage.current_name());std::string bytes((std::istreambuf_iterator<char>(file)),{});
   assert(bytes==".");
   std::filesystem::remove_all(root);

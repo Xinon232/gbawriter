@@ -29,7 +29,7 @@ struct Harness {
   if(!ok)h.input.reject_edit();
  }
  void frame(unsigned held){input.update(held,consume,this);}
- void expect(const char* s){if(std::strcmp(text.data(),s)){std::cerr<<"expected ["<<s<<"] got ["<<text.data()<<"]\n";std::abort();}}
+ void expect(const char* s){if(std::strcmp(text.str().c_str(),s)){std::cerr<<"expected ["<<s<<"] got ["<<text.str().c_str()<<"]\n";std::abort();}}
 };
 #include "select_accent_matrix.h"
 int main(){

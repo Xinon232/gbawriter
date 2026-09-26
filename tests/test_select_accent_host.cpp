@@ -32,6 +32,6 @@ struct Host {
  ~Host(){std::filesystem::remove_all(root);}
 #endif
  void frame(unsigned held){app.frame(held);}
- void expect(const char* s){if(std::strcmp(text.data(),s)){std::cerr<<"host expected ["<<s<<"] got ["<<text.data()<<"]\n";std::abort();}}
+ void expect(const char* s){if(std::strcmp(text.str().c_str(),s)){std::cerr<<"host expected ["<<s<<"] got ["<<text.str().c_str()<<"]\n";std::abort();}}
 };
 int main(){accent_matrix<Host>();std::cout<<"PASS: complete accent matrix through production host acceptance/cancellation boundary\n";}

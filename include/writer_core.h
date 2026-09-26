@@ -1,10 +1,27 @@
 #pragma once
 #include <cstddef>
 #include <cstdint>
+#if !defined(__arm__)
+#include <string>
+#endif
 
 namespace writer {
-constexpr std::size_t TEXT_CAPACITY = 24 * 1024;
+// Unsaved text held in RAM: bytes typed since the file was opened or last saved.
+// The file itself stays on SD and has no size limit (32-bit offsets).
+constexpr std::size_t TEXT_CAPACITY = 64 * 1024;
+// Pieces describe the document as runs of file bytes and typed bytes.
+constexpr int MAX_PIECES = 1024;
 bool valid_utf8(const char *s, std::size_t n);
+// Incremental valid_utf8 for files read in chunks (also rejects NUL).
+class Utf8Stream {
+public:
+  bool feed(const char *s, std::size_t n);
+  bool finish() const { return _ok && !_more; }
+
+private:
+  unsigned _more = 0, _value = 0, _minimum = 0;
+  bool _ok = true;
+};
 struct Date {
   int day;
   int month;
@@ -17,10 +34,25 @@ Date next_day(Date date);
 bool latest_diary_date(const char *const *names, int count, Date &latest);
 bool can_create_new(const char *name, const char *const *names, int count);
 
+// Read-only bytes of the opened file (kept on SD while editing).
+class TextSource {
+public:
+  virtual std::size_t size() const = 0;
+  virtual bool read(std::size_t offset, char *out, std::size_t n) const = 0;
+
+protected:
+  ~TextSource() = default;
+};
+
+// Piece table: the document is a sequence of runs taken from the source file
+// or from the RAM buffer of typed text. Only edits use RAM.
 class TextModel {
 public:
   TextModel();
+  // RAM-only document (new file, tests); it counts against TEXT_CAPACITY.
   bool set_text(const char *utf8);
+  // The whole source, unmodified and clean. The source must outlive its use.
+  void open(const TextSource *source);
   bool insert(const char *utf8);
   bool replace_before_caret(const char *utf8);
   bool backspace();
@@ -29,19 +61,53 @@ public:
   void move_home();
   void move_end();
   void set_caret(std::size_t position);
-  const char *data();
+  // Byte at p (0 past the end or after a failed SD read, see read_failed()).
+  char at(std::size_t p) const;
+  // Copies up to n bytes from p; returns the count (short on end or read error).
+  std::size_t copy(std::size_t p, char *out, std::size_t n) const;
   std::size_t bytes() const;
   std::size_t caret_byte() const;
   bool dirty() const;
   void mark_saved();
+  void mark_dirty() { _dirty = true; }
+  // Changes on every edit; layouts compare it to know when to rebuild.
+  unsigned revision() const { return _revision; }
+  // First byte the last edit changed.
+  std::size_t last_edit_start() const { return _edit_start; }
+  std::size_t unsaved_bytes() const { return _add_used; }
+  int pieces() const { return _count; }
+  bool read_failed() const { return _failed; }
+#if !defined(__arm__)
+  // Host tests (including the FatFS image test): the whole document as one string.
+  std::string str() const {
+    std::string s(_size, '\0');
+    s.resize(copy(0, &s[0], _size));
+    return s;
+  }
+#endif
+  void clear_read_failed() { _failed = false; }
 
 private:
-  char _storage[TEXT_CAPACITY + 1];
-  std::size_t _gap_begin, _gap_end, _size;
-  bool _dirty;
-  void move_gap(std::size_t position);
-  static std::size_t previous_utf8(const char *s, std::size_t p);
-  static std::size_t next_utf8(const char *s, std::size_t n, std::size_t p);
+  struct Piece {
+    uint32_t start, length;
+    bool added;
+  };
+  const TextSource *_source = nullptr;
+  char _add[TEXT_CAPACITY];
+  Piece _pieces[MAX_PIECES];
+  int _count = 0;
+  std::size_t _add_used = 0, _size = 0, _caret = 0, _edit_start = 0;
+  bool _dirty = false;
+  unsigned _revision = 0;
+  mutable int _hint = 0;
+  mutable std::size_t _hint_start = 0;
+  mutable bool _failed = false;
+  int find(std::size_t p, std::size_t &start) const;
+  bool insert_at(std::size_t p, const char *s, std::size_t n);
+  bool erase(std::size_t p, std::size_t n);
+  void edited(std::size_t start);
+  std::size_t previous_utf8(std::size_t p) const;
+  std::size_t next_utf8(std::size_t p) const;
 };
 
 enum class Button : uint8_t {

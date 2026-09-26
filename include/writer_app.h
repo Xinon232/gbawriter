@@ -25,7 +25,8 @@ public:
   bool status_visible() const { return _status_visible; }
   const char* active_group() const { return _input.active_group(); }
   bool save_feedback(uint16_t held) const;
-  int viewport() const { return _viewport; }
+  // Top visible row, as an index into layout() rows.
+  int viewport() const { return _layout.row_of(_top); }
   int view_rows() const { return _status_visible ? VIEW_ROWS : FULL_VIEW_ROWS; }
   bool caret_visible() const { return _clock.visible(); }
   bool take_redraw() {
@@ -44,13 +45,15 @@ private:
   InputState _input;
   CaretClock _clock;
   Scene _scene = Scene::MENU, _return = Scene::MENU;
-  int _menu = 0, _field = 0, _file = 0, _help = 0, _credits = 0, _viewport = 0,
+  int _menu = 0, _field = 0, _file = 0, _help = 0, _credits = 0,
       _message_frames = 0;
   Date _date{10, 7, 2026};
   uint16_t _previous = 0;
   bool _redraw = true, _ready = false, _wait_release = false,
        _provisional = false, _provisional_dirty = false, _status_visible = true;
   std::size_t _provisional_end = 0;
+  // First byte of the top visible row (layout rows cover only a window).
+  std::size_t _top = 0;
   const char *_message = "";
   static void event(void *context, InputEvent e) {
     static_cast<Application *>(context)->consume(e);
@@ -60,6 +63,8 @@ private:
   void error(StoreResult result);
   void editor();
   void ensure_visible();
+  void cover();
+  void check_read();
   void adjust_date(int delta);
 };
 } // namespace writer
