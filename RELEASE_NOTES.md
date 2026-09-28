@@ -1,3 +1,9 @@
+# gbawriter V3.0 — pre-release candidate
+
+Built from the exact misplaced V1.3 source commit `68e5fe606741a6ee6be013c11170dc5b69efa30b` (the original ROM rebuilds byte-for-byte). Home now says `gbawriter` without a version. Credits opens with the unchanged author-only personal page; its second page says `gbawriter V3.0` and retains all existing font attributions. The complete controls PDF and README are versioned V3.0. Input, file handling, storage, fonts and other behavior are unchanged. **Physical GBA/Supercard SD saving remains unverified**; keep backups and use disposable documents first.
+
+## Previous release notes (V1.3)
+
 # gbawriter V1.3 — large files and gbamp3 UI font (pre-release)
 
 Based on V1.2 (`577ff2a`). **Physical hardware remains unverified**: host tests and FatFS disk-image fault injection pass, but saving on a real Supercard SD has not been tested with this version. Keep backups.

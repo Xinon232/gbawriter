@@ -74,7 +74,7 @@ void render(bn::palette_bitmap_bg_painter& painter,bn::sprite_text_generator& ui
  using writer::Scene;
  switch(app.scene()){
  case Scene::MENU:
-  title(ui,sprites,"gbawriter V1.3");ui_line(ui,sprites,70,28,"files: /gbawriter");
+  title(ui,sprites,"gbawriter");ui_line(ui,sprites,70,28,"files: /gbawriter");
   cursor_at(cursor,sprites,80,app.menu_selection()==0?50:74);ui_line(ui,sprites,94,50,"NEW FILE");ui_line(ui,sprites,94,74,"LOAD FILE");
   ui_line(hint,sprites,16,140,"Select: Controls");ui_line(hint,sprites,128,140,"Start: Credits");break;
  case Scene::DATE:{
@@ -99,7 +99,7 @@ void render(bn::palette_bitmap_bg_painter& painter,bn::sprite_text_generator& ui
   line(px,8,38,"Made by Halim Jarrar");line(px,8,60,"(C) 2026");
   line(px,8,82,"halim-jarrar.de");line(px,8,104,"monday@halim-jarrar.de");
   }else{
-   title(ui,sprites,"SUPERFW / FONTS");
+   title(ui,sprites,"gbawriter V3.0");
    line(px,8,30,"SuperFW software font renderer");
    line(px,8,48,"UNSCII fonts: viznut.fi/unscii");
    line(px,8,66,"UNSCII source: GPL license");

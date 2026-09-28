@@ -5,7 +5,10 @@ main = (root / "src/main.cpp").read_text()
 core = (root / "src/writer_core.cpp").read_text()
 header = (root / "include/writer_core.h").read_text()
 make = (root / "Makefile").read_text()
-assert "gbawriter V1.3" in main and "files: /gbawriter" in main and "NEW FILE" in main and "LOAD FILE" in main
+assert 'title(ui,sprites,"gbawriter");ui_line(ui,sprites,70,28,"files: /gbawriter")' in main
+assert 'title(ui,sprites,"gbawriter V3.0")' in main
+assert '"gbawriter V1.3"' not in main and '"SUPERFW / FONTS"' not in main
+assert "NEW FILE" in main and "LOAD FILE" in main
 assert "draw_text_idx8_bus16_range" in main
 assert "bn::sprite_font ui_font(" in main
 assert 'writer::Application app' in main

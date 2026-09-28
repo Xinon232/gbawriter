@@ -1,10 +1,10 @@
-# gbawriter — V1.3
+# gbawriter — V3.0 pre-release candidate
 
 Create and edit TXT files on your Game Boy Advance. Save your writing directly to the SD card, or open an existing text file to keep working. Put your TXT files in `/gbawriter` at the root of the SD card. Requires a compatible Supercard SD.
 
 Based on [GBAReader v0.5.0](https://github.com/Xinon232/gbareader), using Butano menus, the SuperFW bitmap text renderer and fonts, and Supercard SD/FatFS storage. There is no QWERTY keyboard, network service, or AI component.
 
-> **Physical hardware remains unverified.** Host tests and software filesystem fault injection pass; these are **not proof that saving is safe on a real GBA + Supercard SD**. Use disposable documents and a backed-up SD card until the hardware checklist below is completed. Do not entrust the only copy of a diary to this release. V1.2 is a prerelease candidate; this does not certify physical-hardware safety.
+> **Physical hardware remains unverified.** Host tests and software filesystem fault injection pass; these are **not proof that saving is safe on a real GBA + Supercard SD**. Use disposable documents and a backed-up SD card until the hardware checklist below is completed. Do not entrust the only copy of a diary to this V3.0 pre-release candidate.
 
 ## Hardware and installation
 
@@ -26,9 +26,9 @@ If no dated documents exist, the manual starting date is **10 July 2026**. This 
 
 ## Controller layout
 
-Main-menu **SELECT** opens controls and **START** opens credits; **B** returns from either. The adjacent bottom hints read exactly `Select: Controls` and `Start: Credits`. Credits always open on the personal first page: `Made by Halim Jarrar`, `(C) 2026`, `halim-jarrar.de`, and `monday@halim-jarrar.de`, with no third-party credit mixed into that page. Left/Right cycles the two Credits pages; B returns from either. The second page credits the SuperFW software font renderer, UNSCII fonts (`viznut.fi/unscii`, inherited source marked GPL), and Unifont-derived Hangul blocks. Font notices remain in the source.
+Main-menu **SELECT** opens controls and **START** opens credits; **B** returns from either. The adjacent bottom hints read exactly `Select: Controls` and `Start: Credits`. Credits always open on the personal first page: `Made by Halim Jarrar`, `(C) 2026`, `halim-jarrar.de`, and `monday@halim-jarrar.de`, with no version or third-party credit mixed into that page. Left/Right cycles the two Credits pages; B returns from either. The second page has the `gbawriter V3.0` title and credits the SuperFW software font renderer, UNSCII fonts (`viznut.fi/unscii`, inherited source marked GPL), and Unifont-derived Hangul blocks. Font notices remain in the source.
 
-The suite home screen reads `gbawriter V1.3` and `files: /gbawriter`, with NEW FILE first/default and LOAD FILE second. The UI label is independent of the release tag.
+The suite home screen reads `gbawriter` and `files: /gbawriter`, with NEW FILE first/default and LOAD FILE second. The version appears only on the second Credits page, not on Home.
 
 Menu interface text, help section headings and navigation hints use the 5x7 font from gbamp3 (black; key hints grey); the blue Butano font draws only the `>` cursor on the menu, date fields and file list. Numeric date values, text filenames, saving indications, controls body text and credits content retain the SuperFW-based writing font. Editor typography and status positions are unchanged.
 

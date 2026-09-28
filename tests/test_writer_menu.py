@@ -66,7 +66,8 @@ int main(int argc,char** argv){
  Application app(storage,[](const char*){return 6;}); app.boot();
  auto tap=[&](Button b){app.frame(1u<<unsigned(b));app.frame(0);};
  auto draw=[&](){draws.clear();render(app,storage);};
- draw(); check("gbawriter V1.3",true);check("files: /gbawriter",true);check("NEW FILE",true);check("LOAD FILE",true);check("Select: Controls",true);check("Start: Credits",true);only_ui();
+ draw(); check("gbawriter",true);check("files: /gbawriter",true);check("NEW FILE",true);check("LOAD FILE",true);check("Select: Controls",true);check("Start: Credits",true);only_ui();
+ for(auto& d:draws)assert(d.text.find("V3.0")==std::string::npos); // Home never shows a version.
  check_font("NEW FILE","ui");check_font("Select: Controls","hint");check_font(">","cursor");
  Draw item{};for(auto& d:draws)if(d.text=="NEW FILE")item=d;assert(cursor().y==item.y&&cursor().x<item.x);
  Draw select{},start{};for(auto& d:draws){if(d.text=="Select: Controls")select=d;if(d.text=="Start: Credits")start=d;}
@@ -76,7 +77,9 @@ int main(int argc,char** argv){
  const char* personal[]={"Made by Halim Jarrar","(C) 2026","halim-jarrar.de","monday@halim-jarrar.de"};
  int personal_index=0;for(auto& d:draws)if(!d.ui){assert(personal_index<4);assert(d.text==personal[personal_index++]);}
  assert(personal_index==4);
+ for(auto& d:draws)assert(d.text.find("V3.0")==std::string::npos); // Author-only first page.
  tap(Button::RIGHT);draw();
+ check("gbawriter V3.0",true);
  for(auto s:{"SuperFW software font renderer","UNSCII fonts: viznut.fi/unscii","UNSCII source: GPL license","Unifont-derived Hangul blocks","Font notices kept in source","UI font: gbamp3 5x7 font"})check(s,false);
  check("Left/Right: Page  B: Back",true);
  tap(Button::LEFT);draw();for(auto s:personal)check(s,false);
