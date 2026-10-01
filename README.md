@@ -1,10 +1,14 @@
-# gbawriter — V4.0
+# gbawriter — V4.1
 
 Create and edit TXT files on your Game Boy Advance. Save your writing directly to the SD card, or open an existing text file to keep working. Put your TXT files in `/gbawriter` at the root of the SD card, or import them from anywhere on the card. Requires a compatible Supercard SD.
 
 Butano screens in the look of gbamp3, the SuperFW bitmap text renderer and fonts, and Supercard SD/FatFS storage. There is no QWERTY keyboard, network service, or AI component.
 
 > **Physical hardware remains unverified.** Host tests, filesystem fault injection and an emulator run on a modeled SD card pass; these are **not proof that saving is safe on a real GBA + Supercard SD**. Use disposable documents and a backed-up SD card until the hardware checklist below is completed. Do not entrust the only copy of a diary to this release.
+
+## What is new in V4.1
+
+- **Select > Status bar: On / Off** (saved; default On) decides whether the bottom bar is shown when a file opens. Start+Select still hides or shows it while writing.
 
 ## What is new in V4.0
 
@@ -70,9 +74,9 @@ On a file the title is its name and the first rows act on it:
 - **Delete** (only when Secret Settings > Delete files is On): the row turns into `Sure?`; A again deletes the TXT file, B or moving cancels.
 - The **open file** (▶) cannot be renamed or deleted: `This file is open. Open another file first.` Files with recovery copies (`.gwt`, `.gwb`, `.gwi`) are refused with `RECOVERY: CHECK SD ON PC`.
 
-Then for every row: **File names: …** (A switches the format; the row shows the next proposed name), the Controls topics (Files and menus, Letters, L layer, Spaces and case, Symbols, Accents, Caret and saving) and **Credits**. Pages: Left/Right turn, B returns to the menu.
+Then for every row: **File names: …** (A switches the format; the row shows the next proposed name), **Status bar: On / Off** (V4.1: whether the editor's bottom bar is shown when a file opens; saved, default On; Start+Select still toggles it while writing), the Controls topics (Files and menus, Letters, L layer, Spaces and case, Symbols, Accents, Caret and saving) and **Credits**. Pages: Left/Right turn, B returns to the menu.
 
-**Credits** — page 1: gbawriter V4.0, Made by Halim Jarrar, (C) 2026, halimj.itch.io, gba@halim-jarrar.de; then License, Text and fonts, SD card and files, Engine, and **Secret Settings** (press A):
+**Credits** — page 1: gbawriter V4.1, Made by Halim Jarrar, (C) 2026, halimj.itch.io, gba@halim-jarrar.de; then License, Text and fonts, SD card and files, Engine, and **Secret Settings** (press A):
 
 - `Reorder list (A+DPAD): On` (default On)
 - `Delete files: Off` (default Off)
@@ -168,7 +172,7 @@ E/S/Y/Z use the held L layer; N/O/U are unmodified groups. Cycles wrap back to t
 - The document is a **piece table**: runs of bytes from the opened file and from the RAM buffer of typed text. Backspacing just-typed text frees its buffer space. Rows are laid out only for a **window** around the top of the screen and the caret: from a line start at least two screens before to two screens after (up to 2,048 rows), rebuilt as you edit or move. Lines up to 72 KiB wrap exactly as a whole-document layout would; a single line longer than that starts its window at a word on a fixed 4 KiB grid.
 - Caret movement/backspace is codepoint-based, not grapheme-cluster-based. Combining marks can therefore be navigated separately. No normalization or encoding conversion occurs.
 - Soft wrapping is display-only **whole-word** wrapping: words that fit the viewport move intact to the next row; only oversized words split across rows. Whitespace remains in the visual row index (including trailing spaces), never trimmed or rewritten. Inter-word spaces/tabs carried onto an automatic continuation row have zero display advance, so the next word starts at the left margin. Deliberate indentation at document start or after explicit newlines stays visible even when it spans rows. Hidden separators remain individually reachable with Left/Right and backspace; vertical navigation chooses the earliest byte when several caret positions share x=0. Reflow looks ahead once per word and never saves additional line breaks. Explicit Enter inserts LF. Existing CRLF and BOM bytes are preserved; CR/BOM have zero display width, and tabs occupy a fixed 24 pixels rather than tab stops. Mixed line endings are possible after editing CRLF documents.
-- Editor text begins at y=0 with unchanged 16-pixel glyph height and 18-pixel line pitch. The bar occupies y=144–159; a six-pixel gutter is reserved above it. Complete rows only: **7 rows with the bar, 9 full-screen**. Page navigation uses the current row count. Bar visibility defaults on at boot and remains a session preference across saves, errors and documents; it does not alter stored files.
+- Editor text begins at y=0 with unchanged 16-pixel glyph height and 18-pixel line pitch. The bar occupies y=144–159; a six-pixel gutter is reserved above it. Complete rows only: **7 rows with the bar, 9 full-screen**. Page navigation uses the current row count. Whether the bar is shown when a file opens is the Select menu setting **Status bar** (saved in `GBAWRITER.SYS`, default On); Start+Select toggles it until the next file is opened. Resuming the open file keeps its current state. It does not alter stored files.
 - The vertical caret is a drawn graphic primitive, not a text character, with GBA-safe halfword writes. It stays visible on typing/navigation and blinks after about one second idle (36-frame phases).
 - Loaded filenames must fit 250 bytes to leave room for transient recovery suffixes. Longer names can be listed but are refused when opened. Long visible names are clipped by pixel width; the status buffer retains complete UTF-8 names, including the dirty marker.
 - Measured clean devkitARM build: **185,988 bytes EWRAM occupied, 76,156 bytes remaining** (V4.0 adds the 40 KiB list of names and a 4 KiB import copy buffer); IWRAM user-stack headroom **23,552 bytes** (random-access file reads link libgcc's 64-bit divide into IWRAM); largest checked runtime-source static stack frame **1,680 bytes**. App and storage objects are explicitly in EWRAM. The memory gate enforces at least 64 KiB EWRAM headroom, 20 KiB IWRAM stack headroom and a 2 KiB individual-frame ceiling. This is a budget check, **not a proof of total call-stack/IRQ depth**.

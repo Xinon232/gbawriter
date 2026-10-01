@@ -9,7 +9,7 @@ app = (root / "src/writer_app.cpp").read_text()
 helps = (root / "src/writer_help.cpp").read_text()
 # V4.0: Home is the file list with New File first; Credits name V4.0.
 assert '"New File"' in app and '"gbawriter"' in app and '"B: Resume active file"' in app
-assert '"gbawriter V4.0"' in helps and 'halimj.itch.io' in helps and 'gba@halim-jarrar.de' in helps
+assert '"gbawriter V4.1"' in helps and 'halimj.itch.io' in helps and 'gba@halim-jarrar.de' in helps
 assert 'based on gbareader' not in helps.lower()
 assert '"gbawriter V3.0"' not in main and "LOAD FILE" not in main
 assert "draw_text_idx8_bus16_range" in main

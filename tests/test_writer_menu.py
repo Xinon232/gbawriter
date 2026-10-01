@@ -93,17 +93,18 @@ int main(int argc,char** argv){
  assert(a.nav().sel()==0);
  tap(Button::SELECT);frame();assert(has("gbawriter"));
  // Controls pages: grey page number, grey subheadings, no key line.
+ tap(Button::DOWN);frame();assert(has("gbawriter"));   // Status bar row
  tap(Button::DOWN);tap(Button::A);frame();
  assert(has("Home")&&has("1/4",true)&&has("Home",false));
  bool sub=false;for(auto& d:draws)if(d.grey&&d.text!="1/4")sub=true;assert(sub);
  for(auto& d:draws)assert(d.text.find("Left/Right")==std::string::npos);
  tap(Button::B);
  // Credits: personal page first.
- tap(Button::UP);tap(Button::UP);tap(Button::A);frame();
+ tap(Button::UP);tap(Button::UP);tap(Button::UP);tap(Button::A);frame();
  assert(a.scene()==Scene::PAGES&&a.topic()==CREDITS_TOPIC);
  assert(has("Credits")&&has("1/6",true));
  const auto& page=help_page(CREDITS_TOPIC,0);
- assert(std::string(page.lines[0])=="gbawriter V4.0"&&std::string(page.lines[2])=="Made by Halim Jarrar"&&
+ assert(std::string(page.lines[0])=="gbawriter V4.1"&&std::string(page.lines[2])=="Made by Halim Jarrar"&&
         std::string(page.lines[3])=="(C) 2026"&&std::string(page.lines[5])=="halimj.itch.io"&&std::string(page.lines[6])=="gba@halim-jarrar.de");
  tap(Button::B);tap(Button::B);
  // Date picker in the format's field order, file name preview.

@@ -9,7 +9,7 @@ constexpr unsigned A_KEY = 1u << unsigned(Button::A), B_KEY = 1u << unsigned(But
                    LEFT_KEY = 1u << unsigned(Button::LEFT), RIGHT_KEY = 1u << unsigned(Button::RIGHT),
                    START_KEY = 1u << unsigned(Button::START), SELECT_KEY = 1u << unsigned(Button::SELECT);
 // Select menu actions.
-enum { ACT_RENAME, ACT_DELETE, ACT_FORMAT, ACT_TOPIC };
+enum { ACT_RENAME, ACT_DELETE, ACT_FORMAT, ACT_STATUS, ACT_TOPIC };
 // Longest name typed in Rename: the file name (with .txt) stays under 251 bytes.
 constexpr std::size_t RENAME_MAX = FILE_NAME_SIZE - 10;
 void copy_base(const char *name, char *out, std::size_t cap) {
@@ -72,6 +72,9 @@ void Application::error(StoreResult r) {
   change(Scene::ERROR);
 }
 void Application::editor() {
+  // V4.1: Select menu > Status bar decides how a file opens; Start+Select
+  // still toggles it while writing.
+  _status_visible = _storage.settings().status_bar;
   _input = InputState();
   _clock = CaretClock();
   _message = "";
@@ -408,7 +411,7 @@ void Application::open_list(ListKind kind, int select) {
 int Application::list_rows_for(ListKind kind) const {
   switch (kind) {
   case ListKind::MENU:
-    return (_menu_file >= 0 ? (_storage.settings().delete_files ? 2 : 1) : 0) + 1 + HELP_TOPICS;
+    return (_menu_file >= 0 ? (_storage.settings().delete_files ? 2 : 1) : 0) + 2 + HELP_TOPICS;
   case ListKind::SECRET:
     return 3;
   case ListKind::IMPORT:
@@ -430,7 +433,7 @@ int Application::menu_row(int row) const {
       return ACT_DELETE;
     row -= _storage.settings().delete_files ? 2 : 1;
   }
-  return row == 0 ? ACT_FORMAT : ACT_TOPIC + row - 1;
+  return row == 0 ? ACT_FORMAT : row == 1 ? ACT_STATUS : ACT_TOPIC + row - 2;
 }
 const char *Application::list_title(char (&out)[64]) const {
   if (_scene == Scene::HOME)
@@ -502,6 +505,9 @@ bool Application::list_row(int row, char (&out)[FILE_NAME_SIZE + 32]) const {
       writer::format(out, sizeof(out), "File names: %s", name);
       break;
     }
+    case ACT_STATUS:
+      std::strcpy(out, _storage.settings().status_bar ? "Status bar: On" : "Status bar: Off");
+      break;
     default:
       std::strcpy(out, help_topic_name(menu_row(row) - ACT_TOPIC));
     }
@@ -695,6 +701,17 @@ void Application::list_activate(int row) {
         error(r);
       return;
     }
+    if (act == ACT_STATUS) {
+      Settings s = _storage.settings();
+      s.status_bar = !s.status_bar;
+      auto r = _storage.set_settings(s);
+      if (r == StoreResult::OK)
+        _status_visible = s.status_bar; // also for the open file
+      _redraw = true;
+      if (r != StoreResult::OK)
+        error(r);
+      return;
+    }
     _topic = act - ACT_TOPIC;
     _page = 0;
     change(Scene::PAGES);
@@ -808,7 +825,7 @@ void Application::list_activate(int row) {
 void Application::pages_frame(uint16_t pressed) {
   const int pages = help_topic_pages(_topic);
   if (pressed & B_KEY) {
-    int row = (_menu_file >= 0 ? (_storage.settings().delete_files ? 2 : 1) : 0) + 1 + _topic;
+    int row = (_menu_file >= 0 ? (_storage.settings().delete_files ? 2 : 1) : 0) + 2 + _topic;
     open_list(ListKind::MENU, row);
   } else if ((pressed & LEFT_KEY) && _page > 0) {
     --_page;

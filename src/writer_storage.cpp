@@ -579,7 +579,8 @@ void Storage::move(int i, int j) {
   _order[j] = t;
 }
 // ---- GBAWRITER.SYS ----
-// "GBWST001", u32 generation, u8 format, reorder, delete, has_date, u8 day,
+// "GBWST001", u32 generation, u8 format, reorder, delete, flags (bit 0 has_date,
+// bit 1 status bar off since V4.1; 0 in V4.0 files), u8 day,
 // u8 month, u16 year, u32 count, u32 reserved, count NUL-terminated names,
 // u32 FNV-1a of everything before. Little endian.
 bool Storage::read_slot(int slot, uint32_t &generation, bool apply) {
@@ -646,6 +647,7 @@ bool Storage::read_slot(int slot, uint32_t &generation, bool apply) {
     s.reorder = header[13];
     s.delete_files = header[14];
     s.has_date = header[15] & 1;
+    s.status_bar = !(header[15] & 2);
     s.date = {header[20], header[21], header[22] | header[23] << 8};
     if (!valid_date(s.date)) {
       s.has_date = false;
@@ -697,7 +699,7 @@ StoreResult Storage::save_state() {
   header[12] = uint8_t(_settings.format);
   header[13] = _settings.reorder;
   header[14] = _settings.delete_files;
-  header[15] = _settings.has_date;
+  header[15] = uint8_t((_settings.has_date ? 1 : 0) | (_settings.status_bar ? 0 : 2));
   header[20] = uint8_t(_settings.date.day);
   header[21] = uint8_t(_settings.date.month);
   header[22] = uint8_t(_settings.date.year);

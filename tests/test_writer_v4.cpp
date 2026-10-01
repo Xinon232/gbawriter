@@ -211,10 +211,11 @@ static void screens() {
   tap(Button::SELECT);
   assert(app.scene() == Scene::LIST && app.list_kind() == ListKind::MENU);
   char title[64];
-  assert(!strcmp(app.list_title(title), "b") && app.list_rows() == 2 + HELP_TOPICS);
+  assert(!strcmp(app.list_title(title), "b") && app.list_rows() == 3 + HELP_TOPICS);
   assert(app.list_row(0, text) && !strcmp(text, "Rename"));
   assert(app.list_row(1, text) && !strncmp(text, "File names: ", 12));
-  assert(app.list_row(1 + HELP_TOPICS, text) && !strcmp(text, "Credits"));
+  assert(app.list_row(2, text) && !strcmp(text, "Status bar: On"));
+  assert(app.list_row(2 + HELP_TOPICS, text) && !strcmp(text, "Credits"));
   // Rename b -> "bx".
   tap(Button::A);
   assert(app.scene() == Scene::RENAME && !strcmp(app.name_text(), "b"));
@@ -248,13 +249,48 @@ static void screens() {
   assert(app.scene() == Scene::HOME);
   // Delete "bh": Sure?, then A.
   tap(Button::SELECT);
-  assert(app.list_rows() == 3 + HELP_TOPICS);
+  assert(app.list_rows() == 4 + HELP_TOPICS);
   tap(Button::DOWN);
   tap(Button::A);
   assert(app.list_row(1, text) && !strcmp(text, "Sure?") && fs::exists(root + "/gbawriter/bh.txt"));
   tap(Button::A);
   assert(app.scene() == Scene::HOME && !fs::exists(root + "/gbawriter/bh.txt") && names_of(s) == "c.txt,a.txt");
   assert(app.nav().sel() == 1); // the next file takes the deleted row
+  // V4.1 Status bar setting: saved, decides how files open; Start+Select
+  // still toggles while writing.
+  tap(Button::UP); // New File: File names, Status bar, topics
+  tap(Button::SELECT);
+  tap(Button::DOWN);
+  assert(app.list_row(1, text) && !strcmp(text, "Status bar: On"));
+  tap(Button::A);
+  assert(!s.settings().status_bar && app.list_row(1, text) && !strcmp(text, "Status bar: Off"));
+  {
+    Storage again(root.c_str());
+    assert(again.init() == StoreResult::OK && !again.settings().status_bar && again.settings().delete_files);
+  }
+  tap(Button::B);
+  tap(Button::DOWN);
+  tap(Button::A);
+  assert(app.scene() == Scene::EDITOR && !app.status_visible());
+  frame(key(Button::START) | key(Button::SELECT));
+  frame(0);
+  assert(app.status_visible());
+  frame(key(Button::START));
+  frame(key(Button::START) | key(Button::B));
+  frame(0);
+  tap(Button::SELECT);
+  tap(Button::DOWN);
+  tap(Button::DOWN);
+  tap(Button::DOWN);
+  tap(Button::A); // back On
+  assert(s.settings().status_bar);
+  tap(Button::B);
+  tap(Button::A); // the open file again
+  assert(app.scene() == Scene::EDITOR && app.status_visible());
+  frame(key(Button::START));
+  frame(key(Button::START) | key(Button::B));
+  frame(0);
+  assert(app.scene() == Scene::HOME);
   // Open c, type, Start+B: Home with the play mark; c cannot be renamed.
   tap(Button::A);
   assert(app.scene() == Scene::EDITOR);

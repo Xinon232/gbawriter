@@ -18,7 +18,8 @@ assert '24 frames' in readme and '5 frames' in readme
 assert 'A alone' in readme and 'B alone' in readme
 assert 'B: Resume active file' in readme and 'Save / Discard / Cancel' in readme
 notes=(root/'RELEASE_NOTES.md').read_text()
-assert notes.startswith('# gbawriter V4.0') and 'hardware' in notes
-assert (root/'docs/release-v4.0.0.md').read_text().startswith('# gbawriter V4.0')
+assert notes.startswith('# gbawriter V4.1') and 'hardware' in notes
+assert (root/'docs/release-v4.1.0.md').read_text().startswith('# gbawriter V4.1')
+assert 'Status bar: On / Off' in readme
 assert 'name: gbawriter-rom' in (root/'.github/workflows/build-rom.yml').read_text()
 print('PASS: V4.0 controls pages and hardware-unverified documentation')

@@ -57,6 +57,7 @@ struct Settings {
   bool reorder = true;     // Secret Settings: A + Up/Down on Home
   bool delete_files = false; // Secret Settings: Delete in the Select menu
   bool has_date = false;   // last date chosen for New File
+  bool status_bar = true;  // V4.1: editor bottom bar shown when a file opens
   Date date{10, 7, 2026};
 };
 // Home lists every TXT up to this count; all names stay in RAM (reordering).

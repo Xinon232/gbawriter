@@ -42,11 +42,14 @@ constexpr HelpPage caret[] = {
                           "Start+B: Home without saving.", "There is no autosave."}},
     {"Back to Home", {"Start+B keeps your text open:", "on Home the file has a play", "mark; B takes you back.",
                       "#Another file", "Opening another file asks:", "Save, Discard or Cancel.", "#Switching off",
-                      "loses text that is not saved."}}};
+                      "loses text that is not saved."}},
+    {"Status bar", {"The bar at the bottom shows", "the file name, the letter group", "and Shift / Caps.", "#Start+Select",
+                    "hides or shows it while writing.", "#Select > Status bar: On / Off", "how files open (saved).",
+                    "Default: On."}}};
 // Credits: the personal page first, then the license and each part made by
 // others with its license (gbavocab / gbamp3 order).
 constexpr HelpPage credits[] = {
-    {"Credits", {"gbawriter V4.0", "", "Made by Halim Jarrar", "(C) 2026", "", "halimj.itch.io",
+    {"Credits", {"gbawriter V4.1", "", "Made by Halim Jarrar", "(C) 2026", "", "halimj.itch.io",
                  "gba@halim-jarrar.de", ""}},
     {"License", {"gbawriter is free software under", "the GNU GPL 3.0 or later.", "", "#Source code",
                  "github.com/Xinon232/gbawriter", "", "Parts made by others and their",
