@@ -16,19 +16,22 @@ int main() {
   Storage storage(root.c_str());
   Application a(storage, width);
   a.boot();
-  assert(storage.operations()==0); // menu and help must not block on SD detection
-  assert(a.scene() == Scene::MENU && a.menu_selection() == 0);
+  assert(storage.operations()==0); // the card is first read by the first frame
+  assert(a.scene() == Scene::HOME);
   auto tap = [&](Button b) {
     a.frame(key(b));
     a.frame(0);
   };
+  auto file = [&](const char *name) {
+    std::ifstream f(root + "/gbawriter/" + name);
+    return std::string((std::istreambuf_iterator<char>(f)), {});
+  };
+  // Start on Home: Import from the card root; B at the root returns Home.
   tap(Button::START);
-  assert(a.scene() != Scene::MENU && a.scene() != Scene::HELP);
-  assert(storage.operations() == 0);
-  tap(Button::A);
-  assert(a.scene() != Scene::MENU); // only B returns
+  assert(a.scene() == Scene::LIST && a.list_kind() == ListKind::IMPORT);
   tap(Button::B);
-  assert(a.scene() == Scene::MENU && storage.operations() == 0);
+  assert(a.scene() == Scene::HOME && a.nav().sel() == 0);
+  // New File (first row): the date picker.
   tap(Button::A);
   assert(a.scene() == Scene::DATE);
   assert(a.date().day == 10 && a.date().month == 7 && a.date().year == 2026);
@@ -41,20 +44,29 @@ int main() {
   a.frame(key(Button::UP) | key(Button::B));
   a.frame(0);
   assert(!strcmp(a.text().str().c_str(), "a"));
+  // START+B: Home without saving; the text stays open (play mark, B resumes).
   a.frame(key(Button::START) | key(Button::B));
   a.frame(0);
-  assert(a.scene() == Scene::MENU);
+  assert(a.scene() == Scene::HOME && a.active() && a.text().dirty() && file("10082026.txt").empty());
+  assert(a.nav().sel() == 1 && a.list_icon(1) == RowIcon::PLAY && a.list_footer());
+  tap(Button::B);
+  assert(a.scene() == Scene::EDITOR && std::string(a.text().str().c_str()) == "a");
+  a.frame(key(Button::START) | key(Button::A));
+  a.frame(0);
+  assert(a.scene() == Scene::EDITOR && !a.text().dirty() && file("10082026.txt") == "a");
+  a.frame(key(Button::START) | key(Button::B));
+  a.frame(0);
+  assert(a.scene() == Scene::HOME);
+  tap(Button::UP); // New File
   tap(Button::A);
-  assert(a.date().day == 11);
+  assert(a.scene() == Scene::DATE && a.date().day == 11 && a.date().month == 8);
   tap(Button::B);
   tap(Button::DOWN);
-  tap(Button::A);
-  assert(a.scene() == Scene::LOAD);
-  tap(Button::A);
+  tap(Button::A); // the open file: resumed
   assert(a.scene() == Scene::EDITOR && std::string(a.text().str().c_str()) == "a");
   tap(Button::A);
   storage.fault_at(1);
-  a.frame(key(Button::START) | key(Button::B));
+  a.frame(key(Button::START) | key(Button::A));
   a.frame(0);
   assert(a.scene() == Scene::ERROR);
   tap(Button::A);
@@ -84,7 +96,7 @@ int main() {
   a.take_redraw();a.frame(key(Button::R));
   assert(a.caps()&&!a.shift()&&a.take_redraw());
   a.frame(0);
-  storage.fault_at(1);a.frame(key(Button::START)|key(Button::B));a.frame(0);
+  storage.fault_at(1);a.frame(key(Button::START)|key(Button::A));a.frame(0);
   tap(Button::A);assert(a.scene()==Scene::EDITOR && a.caps());
   storage.fault_at(-1);
   tap(Button::R);assert(!a.caps());tap(Button::R);assert(a.shift());

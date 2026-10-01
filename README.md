@@ -1,38 +1,86 @@
-# gbawriter — V3.0 pre-release candidate
+# gbawriter — V4.0
 
-Create and edit TXT files on your Game Boy Advance. Save your writing directly to the SD card, or open an existing text file to keep working. Put your TXT files in `/gbawriter` at the root of the SD card. Requires a compatible Supercard SD.
+Create and edit TXT files on your Game Boy Advance. Save your writing directly to the SD card, or open an existing text file to keep working. Put your TXT files in `/gbawriter` at the root of the SD card, or import them from anywhere on the card. Requires a compatible Supercard SD.
 
-Based on [GBAReader v0.5.0](https://github.com/Xinon232/gbareader), using Butano menus, the SuperFW bitmap text renderer and fonts, and Supercard SD/FatFS storage. There is no QWERTY keyboard, network service, or AI component.
+Butano screens in the look of gbamp3, the SuperFW bitmap text renderer and fonts, and Supercard SD/FatFS storage. There is no QWERTY keyboard, network service, or AI component.
 
-> **Physical hardware remains unverified.** Host tests and software filesystem fault injection pass; these are **not proof that saving is safe on a real GBA + Supercard SD**. Use disposable documents and a backed-up SD card until the hardware checklist below is completed. Do not entrust the only copy of a diary to this V3.0 pre-release candidate.
+> **Physical hardware remains unverified.** Host tests, filesystem fault injection and an emulator run on a modeled SD card pass; these are **not proof that saving is safe on a real GBA + Supercard SD**. Use disposable documents and a backed-up SD card until the hardware checklist below is completed. Do not entrust the only copy of a diary to this release.
+
+## What is new in V4.0
+
+- **Home is your file list**, in the gbamp3 look: white screen, small title, eight rows, a light-blue bar on the selected row and long names scrolling sideways. **New File** is the first row (with a page icon and a line under it), then every TXT file in `/gbawriter` without `.txt`. No instructions stay on screen.
+- **Start on Home: Import.** Browse the whole SD card (folders and TXT files) and copy a TXT file into `/gbawriter`. A name already used becomes a numbered copy such as `Diary (2).txt`; nothing is replaced.
+- **Your own order:** hold **A** and press **Up / Down** to move a file. The order is saved on the card; new files appear at the top.
+- **Select on Home: the menu.** On a file: **Rename** and (once switched on in Secret Settings) **Delete**. Always: **File names** (the date format of New File), the Controls topics and **Credits**.
+- **Start+B leaves the editor without saving.** Your text stays open: on Home the file has a play mark ▶ and `B: Resume active file` takes you back. Opening another file asks **Save / Discard / Cancel**. Start+A still saves.
+- **File names for New File:** DDMMYYYY (as before), DD.MM.YYYY, MMDDYYYY, MM.DD.YYYY or YYYY-MM-DD.
+- **Controls and Credits** rewritten as separate sections with short pages; **Secret Settings** on the last Credits page.
 
 ## Hardware and installation
 
 - A GBA-compatible system and **Supercard SD** using the inherited SuperFW-compatible SD driver. Other flashcarts and generic emulator save files are not supported storage backends.
-- Copy `gbawriter.gba` to your flashcart and launch it through its usual ROM loader. The source build produces the ROM; published builds belong under this repository's [Releases](https://github.com/Xinon232/gbawriter/releases).
-- Documents live only in **`/gbawriter/`** on the SD card. The app attempts to create the directory when New/Load is first selected. An SD/directory error is displayed instead of discarding text.
-- Menu and control instructions do not probe SD at boot. Choosing New/Load shows `CHECKING SD...`; an absent/incompatible card can take a substantial driver timeout to report an error. Emulator menu/help operation does not imply SD access works.
+- Copy `gbawriter.gba` to your flashcart and launch it through its usual ROM loader. Published builds are on this repository's [Releases](https://github.com/Xinon232/gbawriter/releases) page.
+- Documents live in **`/gbawriter/`** on the SD card (created at start if missing). Settings and your list order live in the hidden folder `/gbawriter/GBAWRITER.SYS`; nothing is written next to your documents except the transient save files described below.
+- Home needs the card, so it is read once at start (`Checking SD...`). Without a card or with an incompatible one, the driver takes a while to give up; Home then says `No SD card`, and Controls and Credits still work.
 - Back up the SD card before testing. Never remove the card or power off while `SAVING` is displayed.
 
-## Diary and file workflow
+## Home
 
-**New File is selected at startup.** Press A to choose a date, then A to create and edit. The preset is exactly one calendar day after the chronologically latest valid diary filename, including month/year/leap-year transitions. Filenames use **`DDMMYYYY.txt`**; raw alphabetical order is not used to choose the latest date.
+| Key | Action |
+|---|---|
+| Up / Down | Move (hold to scroll; a fresh press at either end wraps) |
+| Left / Right | One page |
+| A | New File: the date picker. A file: open it. The open file (▶): back into it. A acts when it is released. |
+| Hold A + Up / Down | Move the selected file one row (Secret Settings > Reorder list, On by default). New File always stays first. |
+| B | Back to the open file (`B: Resume active file`) |
+| Start | Import |
+| Select | Menu |
 
-If no dated documents exist, the manual starting date is **10 July 2026**. This is an editable preset, not a real-time clock. In the date picker, Up/Down selects Day/Month/Year; Left decrements and Right increments the field; A creates; B returns. Invalid day combinations are clamped. Supported years are 1–9999. At the upper calendar boundary there is no representable next day: the picker retains the latest date, and creation still refuses a collision.
+At start the cursor is always on **New File**. The first time (no saved order), files are listed as before: diary dates newest first, then other names A to Z (upper/lower case ignored). After you move a file, that order is saved; files the order does not know yet (new, imported or copied on a PC) appear at the top, newest first. Rename keeps a file's place. Up to **1,000 files** are listed.
 
-**New File never overwrites an existing name**, including case-only `.TXT` differences. A collision shows `FILE ALREADY EXISTS` and returns to the unchanged proposed date after acknowledgment. It does not add suffixes or truncate the original.
+## New File
 
-**Load File** lists `.txt` files in `/gbawriter/`: valid diary dates newest first, then other names alphabetically (ASCII case-insensitive). Up/Down selects; A opens; B returns. The display shows six entries at a time; the storage index rescans in bounded 32-entry batches, so the directory is not limited to 32 files. Longer directories take longer to rescan. There are no delete, rename, duplicate, or overwrite-from-menu actions.
+The date picker proposes the day after the newest diary file in the chosen file name format (or after the last date you chose; at first **10 July 2026**). This is an editable preset, not a real-time clock. Up/Down choose the field, Left/Right change it, A creates, B goes back to Home. The fields follow the format (Month first for MM.DD.YYYY, Year first for YYYY-MM-DD); the file name is shown below. Invalid day combinations are clamped; years 1–9999.
 
-## Controller layout
+| Select > File names | Example |
+|---|---|
+| DDMMYYYY (default, as before V4.0) | `01102026.txt` |
+| DD.MM.YYYY | `01.10.2026.txt` |
+| MMDDYYYY | `10012026.txt` |
+| MM.DD.YYYY | `10.01.2026.txt` |
+| YYYY-MM-DD | `2026-10-01.txt` (also sorts by date on a PC) |
 
-Main-menu **SELECT** opens controls and **START** opens credits; **B** returns from either. The adjacent bottom hints read exactly `Select: Controls` and `Start: Credits`. Credits always open on the personal first page: `Made by Halim Jarrar`, `(C) 2026`, `halim-jarrar.de`, and `monday@halim-jarrar.de`, with no version or third-party credit mixed into that page. Left/Right cycles the two Credits pages; B returns from either. The second page has the `gbawriter V3.0` title and credits the SuperFW software font renderer, UNSCII fonts (`viznut.fi/unscii`, inherited source marked GPL), and Unifont-derived Hangul blocks. Font notices remain in the source.
+The format only names new files; the list always shows the real names. DDMMYYYY and MMDDYYYY names cannot be told apart, so the proposal only counts files in the chosen format. **New File never overwrites an existing name**, including case-only `.TXT` differences: a collision shows `FILE ALREADY EXISTS` and returns to the date picker.
 
-The suite home screen reads `gbawriter` and `files: /gbawriter`, with NEW FILE first/default and LOAD FILE second. The version appears only on the second Credits page, not on Home.
+## Leaving the editor and the open file
 
-Menu interface text, help section headings and navigation hints use the 5x7 font from gbamp3 (black; key hints grey); the blue Butano font draws only the `>` cursor on the menu, date fields and file list. Numeric date values, text filenames, saving indications, controls body text and credits content retain the SuperFW-based writing font. Editor typography and status positions are unchanged.
+- **Start+A** saves (unchanged). **Start+B** goes to Home **without saving**; nothing is lost: the text stays in memory and the file is the open file: ▶ on its row and `B: Resume active file` at the bottom. B (or A on that row) returns to the text with the caret, view and Shift/Caps as they were.
+- Opening another file or New File while the open file has unsaved changes asks **Unsaved changes: Save / Discard / Cancel** (B = Cancel). Save writes the file first and stops on a save error; Discard drops the changes when the other file opens.
+- **There is no autosave: switching off loses text that is not saved.**
 
-The [full-controls PDF](gbawriter-full-controls.pdf) includes the description, file placement and every control below, with author credit Halim Jarrar. Regenerate it with `python3 tools/build_controls_pdf.py` in an environment with ReportLab and DejaVu Sans installed.
+## Import (Start on Home)
+
+`Import to /gbawriter` starts at the SD-card root and lists folders (folder icon) and then TXT files, each A to Z. Hidden and system entries and `/gbawriter` itself are not shown. A opens a folder, B goes up, B at the root returns to Home. A on a TXT file asks `Import into /gbawriter?` (No first); Yes copies it with a percent display. When the name is used (also in other upper/lower case) the app offers `Yes, as Name (2).txt` (numbers 2 to 99). A failed copy leaves no partial file. Home then shows the new file at the top, selected, with `Imported`. The original stays where it is.
+
+## Select menu
+
+On a file the title is its name and the first rows act on it:
+
+- **Rename:** the name without `.txt` in a field, typed with the gbawriter letters below; Start+A saves, Start+B cancels; `.txt` is added. Not allowed: an empty name, `/ \ : * ? " < > |`, a name ending in a space or a dot, a name already used (also in other upper/lower case). Changing only upper/lower case works.
+- **Delete** (only when Secret Settings > Delete files is On): the row turns into `Sure?`; A again deletes the TXT file, B or moving cancels.
+- The **open file** (▶) cannot be renamed or deleted: `This file is open. Open another file first.` Files with recovery copies (`.gwt`, `.gwb`, `.gwi`) are refused with `RECOVERY: CHECK SD ON PC`.
+
+Then for every row: **File names: …** (A switches the format; the row shows the next proposed name), the Controls topics (Files and menus, Letters, L layer, Spaces and case, Symbols, Accents, Caret and saving) and **Credits**. Pages: Left/Right turn, B returns to the menu.
+
+**Credits** — page 1: gbawriter V4.0, Made by Halim Jarrar, (C) 2026, halimj.itch.io, gba@halim-jarrar.de; then License, Text and fonts, SD card and files, Engine, and **Secret Settings** (press A):
+
+- `Reorder list (A+DPAD): On` (default On)
+- `Delete files: Off` (default Off)
+- `Delete configuration`: `Sure?`, A again removes `GBAWRITER.SYS` (settings and order back to their defaults; documents are never touched).
+
+## Typing
+
+The editor and all typing controls are unchanged from V3.0, except that Start+B no longer saves (see above). The [full-controls PDF](gbawriter-full-controls.pdf) has every control; regenerate it with `python3 tools/build_controls_pdf.py` (ReportLab and DejaVu Sans).
 
 Hold a direction, then press **B / A / R** to choose its **first / second / third** letter. Lowercase is the default.
 
@@ -71,10 +119,10 @@ Hold START, then:
 | Up / Down | Move to the closest horizontal position in the adjacent visual row |
 | L / R | Previous / next viewport page, maintaining a valid caret |
 | A | Save the current file |
-| B | Save, then return to the main menu **only on success** |
+| B | Back to Home **without saving**; the text stays open (▶, `B: Resume active file`) |
 | SELECT | Toggle the bottom status bar / full-screen editor |
 
-Navigation repeats while held. Releasing START after a recognized command **does not add a newline**, even when saving fails. A save failure opens a clear error message and returns to the editor with text retained after acknowledgment. There is no discard shortcut or autosave.
+Navigation repeats while held. Releasing START after a recognized command **does not add a newline**, even when saving fails. A save failure opens a clear error message and returns to the editor with text retained after acknowledgment. There is no autosave.
 
 ### SELECT: one provisional character
 
@@ -112,7 +160,7 @@ While SELECT and the same group remain held, **release and press the final B/A/R
 | Y | ý ÿ | Ý Ÿ |
 | Z | ž ź ż | Ž Ź Ż |
 
-E/S/Y/Z use the held L layer; N/O/U are unmodified groups. Cycles wrap back to the first alternate. All 77 distinct required lowercase/uppercase glyphs are verified against the real font packs and renderer, including even/odd pixel addressing. Main-menu **SELECT** opens 20 control pages; Left/Right changes page; B returns. Help strings are checked for glyph coverage and screen width.
+E/S/Y/Z use the held L layer; N/O/U are unmodified groups. Cycles wrap back to the first alternate. All 77 distinct required lowercase/uppercase glyphs are verified against the real font packs and renderer, including even/odd pixel addressing. Home **SELECT** opens the menu with the Controls topics; Left/Right changes page; B returns. Help strings are checked for glyph coverage and screen width.
 
 ## Text, memory and limits
 
@@ -123,8 +171,9 @@ E/S/Y/Z use the held L layer; N/O/U are unmodified groups. Cycles wrap back to t
 - Editor text begins at y=0 with unchanged 16-pixel glyph height and 18-pixel line pitch. The bar occupies y=144–159; a six-pixel gutter is reserved above it. Complete rows only: **7 rows with the bar, 9 full-screen**. Page navigation uses the current row count. Bar visibility defaults on at boot and remains a session preference across saves, errors and documents; it does not alter stored files.
 - The vertical caret is a drawn graphic primitive, not a text character, with GBA-safe halfword writes. It stays visible on typing/navigation and blinks after about one second idle (36-frame phases).
 - Loaded filenames must fit 250 bytes to leave room for transient recovery suffixes. Longer names can be listed but are refused when opened. Long visible names are clipped by pixel width; the status buffer retains complete UTF-8 names, including the dirty marker.
-- Measured clean devkitARM build: **134,916 bytes EWRAM occupied, 127,228 bytes remaining**; IWRAM user-stack headroom **23,592 bytes** (random-access file reads link libgcc's 64-bit divide into IWRAM); largest checked runtime-source static stack frame **1,656 bytes**. App and storage objects are explicitly in EWRAM. The memory gate enforces at least 64 KiB EWRAM headroom, 20 KiB IWRAM stack headroom and a 2 KiB individual-frame ceiling. This is a budget check, **not a proof of total call-stack/IRQ depth**.
-- No EPUB editor, undo/redo, clipboard, search, autosave, RTC dependency, or general file manager.
+- Measured clean devkitARM build: **185,988 bytes EWRAM occupied, 76,156 bytes remaining** (V4.0 adds the 40 KiB list of names and a 4 KiB import copy buffer); IWRAM user-stack headroom **23,552 bytes** (random-access file reads link libgcc's 64-bit divide into IWRAM); largest checked runtime-source static stack frame **1,680 bytes**. App and storage objects are explicitly in EWRAM. The memory gate enforces at least 64 KiB EWRAM headroom, 20 KiB IWRAM stack headroom and a 2 KiB individual-frame ceiling. This is a budget check, **not a proof of total call-stack/IRQ depth**.
+- Home lists up to 1,000 TXT files (all names are kept in 40 KiB of RAM for reordering); files beyond that are not listed. The saved order holds the names in `GBAWRITER.SYS/STATE0.DAT` / `STATE1.DAT` (two checked copies; the newer valid one is used).
+- No EPUB editor, undo/redo, clipboard, search, autosave or RTC dependency.
 
 ## Saving and interrupted-save recovery
 
@@ -134,7 +183,7 @@ The implementation streams the document (the opened file's bytes plus your edits
 
 While a file is open it stays open read-only, because unedited parts of the document are read from it. During a save the open copy keeps being read under its `.gwb` name. Recovery **never deletes the file the current session reads**: in that state it reports `RECOVERY: CHECK SD ON PC` instead, and the session text stays readable. A failed SD read reopens the file once before reporting an error.
 
-Automatic recovery restores or validates copies only in states it can safely interpret. **Canonical file + `.gwt` is deliberately left untouched**: a failed FatFS rename can make two names share a cluster chain, and deleting either alias can destroy the canonical data. Ambiguous states report `RECOVERY: CHECK SD ON PC` and can block New/Load scanning until resolved. A failed save leaves in-memory text dirty.
+Automatic recovery restores or validates copies only in states it can safely interpret. **Canonical file + `.gwt` is deliberately left untouched**: a failed FatFS rename can make two names share a cluster chain, and deleting either alias can destroy the canonical data. Ambiguous states report `RECOVERY: CHECK SD ON PC` and can block reading the file list until resolved. A failed save leaves in-memory text dirty.
 
 If this happens:
 
@@ -170,22 +219,25 @@ EXTRA_CXXFLAGS='-fsanitize=address,undefined -fno-omit-frame-pointer -fno-pie -n
 python3 tests/run_fatfs_tests.py
 ```
 
-The normal runner includes writer core/app/layout/storage/frame/format suites, a large-file app test (a 300 KB file paged end to end with START+L/R, edited at both ends and saved), a 100,000-operation deterministic text-model differential test, real glyph/help checks, memory-gate rejection tests, and preserved GBAReader regression suites. Portable FatFS QA compiles the production `__DEVKITARM__` filesystem branch with actual FatFS, substituting only sector-backed host disk I/O and bypassing hardware initialization. Verified: **8,736 checks, zero failures**: 141 injected disk-request boundaries for a RAM document, and 1,055 for a ~100 KB document still read from its file (edited in the middle), where after every failure the session text stays exact and readable, a same-session retry never deletes the open file, and the canonical file is exactly old or new. Host operation-level storage tests separately inject 35 save failures. These tests are not physical hardware validation.
+The normal runner includes writer core/app/layout/storage/frame/format suites, the V4.0 suite (list order, settings slots, rename/delete, import, every new screen through the real app) and a render test of the V4.0 screens, a large-file app test (a 300 KB file paged end to end with START+L/R, edited at both ends and saved), a 100,000-operation deterministic text-model differential test, real glyph/help checks, memory-gate rejection tests, and preserved GBAReader regression suites. Portable FatFS QA compiles the production `__DEVKITARM__` filesystem branch with actual FatFS, substituting only sector-backed host disk I/O and bypassing hardware initialization. Verified: **8,905 checks, zero failures** (V4.0 adds the hidden settings folder, the order after a remount, a fault at each of the 59 disk events of saving the order — always the old or the new order is read back — UTF-8 and case-only rename, delete, the import browser and a 70 KB import with faults injected through the copy, never leaving a partial file): 141 injected disk-request boundaries for a RAM document, and 1,055 for a ~100 KB document still read from its file (edited in the middle), where after every failure the session text stays exact and readable, a same-session retry never deletes the open file, and the canonical file is exactly old or new. Host operation-level storage tests separately inject 35 save failures. These tests are not physical hardware validation.
 
-`make test` is only an optional short mGBA immediate opcode/header rejection check, not boot or storage proof. CI builds on main/PR/manual dispatch with read-only repository permission and uploads ROM/ELF artifacts; it does not publish releases automatically. The clean build retains warnings in inherited reader/vendor sources; new writer sources build without warnings.
+`make test` is only an optional short mGBA immediate opcode/header rejection check, not boot or storage proof. `tests/emu/` holds a scripted mGBA runner that runs the exact ROM on gbamp3's modeled Supercard SD (`scsd_model.h`) and a FAT16 test card (`make_card.sh`); V4.0 was checked this way (screens, reorder across a restart, rename, import with numbered copies, file name formats, New File, Start+B / Resume / Save, Delete, Secret Settings). It needs an mGBA library build and is not part of CI. CI builds on main/PR/manual dispatch with read-only repository permission and uploads ROM/ELF artifacts; it does not publish releases automatically. The clean build retains warnings in inherited reader/vendor sources; new writer sources build without warnings.
 
 ## Real-hardware checklist — not yet completed
 
 Use a real GBA and target Supercard SD, a backed-up card and disposable documents:
 
-- [ ] Discover/create `/gbawriter/`; visible directory/card failure handling.
+- [ ] Discover/create `/gbawriter/`; visible directory/card failure handling; `No SD card` on Home.
+- [ ] Home order: A+Up/Down, persistence after switching off, new/imported files on top; GBAWRITER.SYS hidden on a PC.
+- [ ] Import from folders across the card, numbered copies, progress, large files; Rename (also case only) and Delete.
+- [ ] Start+B leaves unsaved, ▶ / Resume, Save / Discard / Cancel when opening another file.
 - [ ] A,A diary creation; manual date picker; chronological date preset across leap/month/year boundaries.
 - [ ] Duplicate/case-only filename refusal; original bytes unchanged on a computer.
 - [ ] Directory sorting, mixed-case `.TXT`, long names and more than 32 files.
 - [ ] Load, edit, save, shorter/empty replacement, repeated saves and reboot persistence; no truncation or permanent artifacts.
 - [ ] Long sessions up to the byte limit; insert/delete at wrap boundaries, navigation repeat, pages, caret placement and blinking.
 - [ ] Every normal/L-layer chord, same-held G/V versus separate jj/ww, Shift/Caps and Caps-off override.
-- [ ] START newline/save/save-menu/navigation; no extra newline after commands; failed save retains buffer and capitalization.
+- [ ] START newline/save/leave/navigation; no extra newline after commands; failed save retains buffer and capitalization.
 - [ ] SELECT one-character replacement, exact digit/punctuation/symbol cycles and all international lower/uppercase glyphs.
 - [ ] Open resulting UTF-8 files on Windows/Linux/macOS and compare exact bytes, including accents, BOM/CRLF and empty files.
 - [ ] Safely induced write failures and interrupted recovery on disposable card copies, plus full-disk behavior. Never experiment with valuable diary data.

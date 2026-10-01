@@ -108,31 +108,71 @@ bool valid_date(Date d) {
   return d.year >= 1 && d.year <= 9999 && d.month >= 1 && d.month <= 12 &&
          d.day >= 1 && d.day <= days(d.month, d.year);
 }
-bool parse_diary_name(const char *n, Date &d) {
-  if (!n || std::strlen(n) != 12 || !same(n + 8, ".txt"))
+namespace {
+// Digits, separator and field order of each NameFormat (day 0, month 1, year 2).
+struct Layout_ {
+  char separator;
+  int order[3];
+};
+constexpr Layout_ formats[NAME_FORMATS] = {
+    {0, {0, 1, 2}}, {'.', {0, 1, 2}}, {0, {1, 0, 2}}, {'.', {1, 0, 2}}, {'-', {2, 1, 0}}};
+} // namespace
+const char *name_format_label(NameFormat f) {
+  static const char *const labels[NAME_FORMATS] = {"DDMMYYYY", "DD.MM.YYYY", "MMDDYYYY",
+                                                   "MM.DD.YYYY", "YYYY-MM-DD"};
+  return labels[int(f) < NAME_FORMATS ? int(f) : 0];
+}
+void date_field_order(NameFormat f, int order[3]) {
+  const Layout_ &l = formats[int(f) < NAME_FORMATS ? int(f) : 0];
+  for (int i = 0; i < 3; ++i)
+    order[i] = l.order[i];
+}
+bool parse_diary_name(const char *n, NameFormat f, Date &d) {
+  if (int(f) >= NAME_FORMATS)
     return false;
-  for (int i = 0; i < 8; ++i)
-    if (n[i] < '0' || n[i] > '9')
+  const Layout_ &l = formats[int(f)];
+  const std::size_t stem = 8 + (l.separator ? 2 : 0);
+  if (!n || std::strlen(n) != stem + 4 || !same(n + stem, ".txt"))
+    return false;
+  int value[3] = {};
+  const char *p = n;
+  for (int i = 0; i < 3; ++i) {
+    const int field = l.order[i], digits = field == 2 ? 4 : 2;
+    for (int k = 0; k < digits; ++k, ++p) {
+      if (*p < '0' || *p > '9')
+        return false;
+      value[field] = value[field] * 10 + (*p - '0');
+    }
+    if (i < 2 && l.separator && *p++ != l.separator)
       return false;
-  d = {(n[0] - '0') * 10 + n[1] - '0', (n[2] - '0') * 10 + n[3] - '0',
-       (n[4] - '0') * 1000 + (n[5] - '0') * 100 + (n[6] - '0') * 10 + n[7] -
-           '0'};
+  }
+  d = {value[0], value[1], value[2]};
   return valid_date(d);
 }
+void format_diary_name(Date d, NameFormat f, char o[DIARY_NAME_SIZE]) {
+  const Layout_ &l = formats[int(f) < NAME_FORMATS ? int(f) : 0];
+  const int value[3] = {d.day, d.month, d.year};
+  char *p = o;
+  for (int i = 0; i < 3; ++i) {
+    const int field = l.order[i], v = value[field];
+    if (field == 2) {
+      *p++ = char('0' + v / 1000);
+      *p++ = char('0' + v / 100 % 10);
+    }
+    *p++ = char('0' + v / 10 % 10);
+    *p++ = char('0' + v % 10);
+    if (i < 2 && l.separator)
+      *p++ = l.separator;
+  }
+  std::memcpy(p, ".txt", 5);
+}
+bool parse_diary_name(const char *n, Date &d) {
+  return parse_diary_name(n, NameFormat::DDMMYYYY, d);
+}
 void format_diary_name(Date d, char o[13]) {
-  o[0] = '0' + d.day / 10;
-  o[1] = '0' + d.day % 10;
-  o[2] = '0' + d.month / 10;
-  o[3] = '0' + d.month % 10;
-  o[4] = '0' + d.year / 1000;
-  o[5] = '0' + d.year / 100 % 10;
-  o[6] = '0' + d.year / 10 % 10;
-  o[7] = '0' + d.year % 10;
-  o[8] = '.';
-  o[9] = 't';
-  o[10] = 'x';
-  o[11] = 't';
-  o[12] = 0;
+  char full[DIARY_NAME_SIZE];
+  format_diary_name(d, NameFormat::DDMMYYYY, full);
+  std::memcpy(o, full, 13);
 }
 Date next_day(Date d) {
   if (++d.day > days(d.month, d.year)) {

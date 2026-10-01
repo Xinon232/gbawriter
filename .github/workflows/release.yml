@@ -1,0 +1,61 @@
+name: Publish release
+# Push a branch release/vX.Y.Z whose docs/release-vX.Y.Z.md exists: runs the
+# host tests, builds the ROM with the pinned toolchain and publishes release
+# vX.Y.Z (tagging the pushed commit) with the ROM, the controls PDF and
+# SHA256SUMS. An existing release is left untouched.
+on:
+  push:
+    branches: ['release/v*']
+permissions:
+  contents: read
+jobs:
+  rom:
+    runs-on: ubuntu-24.04
+    container: devkitpro/devkitarm:20260610
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: GValiente/butano
+          ref: 77dcbcb3d8783596a9f333c64eedbccec77b05dc
+          path: _butano
+      - name: Run host tests
+        run: bash tests/run_host_tests.sh
+      - name: Build ROM and check memory budget
+        env:
+          DEVKITPRO: /opt/devkitpro
+          DEVKITARM: /opt/devkitpro/devkitARM
+        run: |
+          make -j2 LIBBUTANO="$GITHUB_WORKSPACE/_butano/butano"
+          make memory-check LIBBUTANO="$GITHUB_WORKSPACE/_butano/butano"
+          test -s gbawriter.gba
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rom
+          path: gbawriter.gba
+          if-no-files-found: error
+  publish:
+    needs: [rom]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          TAG="${BRANCH#release/}"
+          if gh release view "$TAG" >/dev/null 2>&1; then echo "Release $TAG already exists"; exit 0; fi
+          notes="docs/release-${TAG}.md"
+          test -f "$notes"
+          mkdir dist
+          cp artifacts/gbawriter.gba gbawriter-full-controls.pdf dist/
+          (cd dist && sha256sum * > SHA256SUMS && cat SHA256SUMS)
+          title=$(head -1 "$notes" | sed 's/^# *//')
+          gh release create "$TAG" dist/* --title "$title" --notes-file "$notes" --target "$GITHUB_SHA"

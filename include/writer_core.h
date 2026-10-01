@@ -28,6 +28,15 @@ struct Date {
   int year;
 };
 bool valid_date(Date date);
+// Diary file names of New File. DDMMYYYY is the V3.0 name (and the default).
+enum class NameFormat : uint8_t { DDMMYYYY, DD_MM_YYYY, MMDDYYYY, MM_DD_YYYY, YYYY_MM_DD };
+constexpr int NAME_FORMATS = 5;
+constexpr int DIARY_NAME_SIZE = 15; // "2026-10-01.txt" and NUL
+const char *name_format_label(NameFormat format);
+// Date picker fields in name order: 0 day, 1 month, 2 year.
+void date_field_order(NameFormat format, int order[3]);
+bool parse_diary_name(const char *name, NameFormat format, Date &date);
+void format_diary_name(Date date, NameFormat format, char output[DIARY_NAME_SIZE]);
 bool parse_diary_name(const char *name, Date &date);
 void format_diary_name(Date date, char output[13]);
 Date next_day(Date date);

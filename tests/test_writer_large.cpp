@@ -69,9 +69,9 @@ int main() {
     a.frame(key(hold));
     a.frame(0);
   };
+  // V4.0 Home: New File, then the file.
   tap(Button::DOWN);
-  tap(Button::A);
-  assert(a.scene() == Scene::LOAD && storage.count() == 1);
+  assert(a.scene() == Scene::HOME && storage.count() == 1);
   tap(Button::A);
   assert(a.scene() == Scene::EDITOR);
   TextModel &t = a.text();

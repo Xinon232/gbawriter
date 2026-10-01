@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
+# V4.0: Controls and Credits pages (src/writer_help.cpp). Body lines go to the
+# SuperFW glyph/width check; "#" subheadings use the 5x7 UI font (ASCII, 6 px).
 import ast,re,sys
 from pathlib import Path
-main=(Path(__file__).resolve().parents[1]/'src/main.cpp').read_text()
-block=main.split('const char* const help[',1)[1].split('};',1)[0]
-lines=[ast.literal_eval(s) for s in re.findall(r'"(?:[^"\\]|\\.)*"',block)]
-header=(Path(__file__).resolve().parents[1]/'include/writer_app.h').read_text()
-match=re.search(r'HELP_PAGES\s*=\s*(\d+)',header)
-assert match, 'HELP_PAGES declaration not found'
-pages=int(match.group(1))
-assert len(lines)==pages*6, 'Each declared help page must contain six lines'
-credits=main.split('case Scene::CREDITS:',1)[1].split('case Scene::ERROR:',1)[0]
-lines += [ast.literal_eval(s) for s in re.findall(r'"(?:[^"\\]|\\.)*"', credits)]
-Path(sys.argv[1]).write_text('\n'.join(lines)+'\n')
+source=(Path(__file__).resolve().parents[1]/'src/writer_help.cpp').read_text()
+pages=re.findall(r'\{"((?:[^"\\]|\\.)*)",\s*\{((?:"(?:[^"\\]|\\.)*",?\s*){8})\}\}',source)
+assert len(pages)>=15, 'help pages not found'
+body=[]
+for title,block in pages:
+    lines=[ast.literal_eval(s) for s in re.findall(r'"(?:[^"\\]|\\.)*"',block)]
+    assert len(lines)==8, title
+    assert all(32<=ord(c)<127 for c in title) and len(title)*6<=200, title
+    for line in lines:
+        if line.startswith('#'):
+            assert all(32<=ord(c)<127 for c in line[1:]) and len(line[1:])*6<=224, line
+        elif line:
+            body.append(line)
+Path(sys.argv[1]).write_text('\n'.join(body)+'\n')

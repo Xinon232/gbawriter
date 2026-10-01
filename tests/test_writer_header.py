@@ -21,7 +21,6 @@ assert 'app.viewport()+app.view_rows()' in compact
 assert 'y=writer::TEXT_Y+(row-app.viewport())*writer::TEXT_PITCH' in compact
 assert 'y=writer::TEXT_Y+(caret.row-app.viewport())*writer::TEXT_PITCH' in compact
 assert 'app.save_feedback(snapshot)' in compact
-assert 'UP/DOWN: FIELD  LEFT/RIGHT: +/-' in main
 flags = ['-O1', '-g', '-fsanitize=address,undefined',
          '-fno-sanitize-recover=all', '-fno-omit-frame-pointer', '-fno-pie']
 includes = ['-I' + str(root / 'include'),
@@ -31,7 +30,7 @@ with tempfile.TemporaryDirectory(prefix='gbawriter-header-') as directory:
     out = Path(directory)
     # Compile the actual editor branch and bus-safe line/caret primitives, not
     # a reimplementation. Only Butano's page allocation/flip is outside this test.
-    primitives = main.split('void line(', 1)[1].split('void title(', 1)[0]
+    primitives = main.split('void line(', 1)[1].split('void fill(', 1)[0]
     editor = main.split('case Scene::EDITOR:{', 1)[1].split('break;}', 1)[0]
     (out / 'editor_render.inc').write_text(
         'int glyph_width(const char* s){return int(font_width(s));}\n'
@@ -47,7 +46,7 @@ with tempfile.TemporaryDirectory(prefix='gbawriter-header-') as directory:
                     '-DWRITER_HEADER_CAPACITY=(' + capacity + ')',
                     str(root / 'tests/test_writer_header.cpp'),
                     *[str(root / ('src/' + name + '.cpp')) for name in
-                      ('writer_format', 'writer_core', 'writer_layout', 'writer_app', 'writer_storage')],
+                      ('writer_format', 'writer_core', 'writer_layout', 'writer_app', 'writer_storage', 'writer_help')],
                     str(out / 'font.o'),
                     '-o', str(out / 'header')], check=True)
     subprocess.run([str(out / 'header'),

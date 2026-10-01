@@ -98,16 +98,15 @@ int main() {
   }
   assert(reboot.scan() == StoreResult::OK);
   assert(reboot.total() == 102);
+  // V4.0: every name is listed at once (Home), dates newest first, then A to Z.
+  assert(reboot.count() == 102);
   std::vector<std::string> names;
-  do {
-    for (int i = 0; i < reboot.count(); ++i)
-      names.emplace_back(reboot.name(i));
-  } while (reboot.next_page() == StoreResult::OK && reboot.count());
-  assert(names.size() == 102);
+  for (int i = 0; i < reboot.count(); ++i)
+    names.emplace_back(reboot.name(i));
   std::set<std::string> unique(names.begin(), names.end());
   assert(unique.size() == 102);
-  assert(reboot.previous_page() == StoreResult::OK);
-  assert(!strcmp(reboot.name(reboot.count() - 1), "n099.txt"));
+  assert(names[0] == "22102001.TXT" && names[1] == "21102001.txt" && names[2] == "n000.txt");
+  assert(names.back() == "n099.txt");
   std::filesystem::remove_all(root);
   std::cout << "PASS: writer storage\n";
 }

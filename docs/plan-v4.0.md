@@ -1,6 +1,6 @@
 # gbawriter V4.0 — plan (not implemented yet)
 
-Status: agreed plan, no code changed. Base: gbawriter **V3.0** (`release/v3.0.0`, `1f9e45c`).
+Status: implemented in V4.0 (see RELEASE_NOTES.md). Base: gbawriter **V3.0** (`release/v3.0.0`, `1f9e45c`).
 References: gbamp3 **v1.8**, gbavocab **V4.3**, gbareader **V3.1.1** (gbareader-dev).
 
 Goal: gbawriter gets the gbamp3 look and the gbavocab / gbareader menu model.
@@ -175,7 +175,7 @@ B returns Home.
   switch, the list order (file names, up to 1,000).
 - Missing or damaged: defaults; the app keeps working. Write failures show a
   short message; the documents are never touched by these writes.
-- No SD probe at boot stays: the file is read when Home first needs the card.
+- The card is read once at start (Home is the file list), with `Checking SD...`.
 
 ## 9. Controls (Select menu topics)
 
@@ -205,7 +205,7 @@ gbavocab / gbamp3 / gbareader order, one part per page:
 3. Text and fonts: SuperFW text renderer (David Guillen Fandos, GPL 3.0+);
    UNSCII (Viznut), GNU Unifont, Unifont-derived Hangul; UI 5x7 font from gbamp3
 4. SD card and files: SuperFW SD driver (GPL 3.0+); FatFs by ChaN (BSD style)
-5. Engine: Butano by Gustavo Valiente (zlib); devkitPro / devkitARM; based on gbareader
+5. Engine: Butano by Gustavo Valiente (zlib); devkitPro / devkitARM
 6. Secret Settings: `Press A to open Secret Settings.`
 
 Secret Settings (gbamp3 list):

@@ -21,10 +21,10 @@ g++ "${CXXFLAGS[@]}" \
     -o "$OUT/test_writer_core"
 "$OUT/test_writer_core"
 
-for suite in test_input_layout_v12 test_solo_r test_writer_v020 test_writer_app test_writer_layout test_writer_storage test_writer_frames test_writer_format test_text_model_differential test_writer_large; do
+for suite in test_input_layout_v12 test_solo_r test_writer_v020 test_writer_v4 test_writer_app test_writer_layout test_writer_storage test_writer_frames test_writer_format test_text_model_differential test_writer_large; do
     g++ "${CXXFLAGS[@]}" "$ROOT/tests/$suite.cpp" \
         "$ROOT/src/writer_core.cpp" "$ROOT/src/writer_layout.cpp" \
-        "$ROOT/src/writer_storage.cpp" "$ROOT/src/writer_app.cpp" "$ROOT/src/writer_format.cpp" -o "$OUT/$suite"
+        "$ROOT/src/writer_storage.cpp" "$ROOT/src/writer_app.cpp" "$ROOT/src/writer_format.cpp" "$ROOT/src/writer_help.cpp" -o "$OUT/$suite"
     "$OUT/$suite"
 done
 

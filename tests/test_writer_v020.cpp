@@ -75,8 +75,9 @@ static void toggle(){
  a.frame(key(Button::UP));a.frame(start|select|key(Button::UP));assert(bar(a,0)==before);
  a.frame(key(Button::UP));a.frame(key(Button::UP)|key(Button::B));a.frame(0);
  assert(std::string(a.text().str().c_str())==committed+"A");
- // The chord is editor-only; menu SELECT must still open help.
- Application menu(storage,width);menu.boot();menu.frame(start|select);assert(menu.scene()==Scene::HELP&&bar(menu,0));
+ // The chord is editor-only; Home SELECT must still open the menu.
+ Application menu(storage,width);menu.boot();menu.frame(select);
+ assert(menu.scene()==Scene::LIST&&menu.list_kind()==ListKind::MENU&&bar(menu,0));
  std::filesystem::remove_all(root);
  std::cout<<"PASS: editor-only toggle, both orders/releases, provisional rollback, no leakage or storage\n";
 }
@@ -131,16 +132,17 @@ static void select_release_save_feedback(){
   tap(key(Button::A));tap(key(Button::A));assert(a.scene()==Scene::EDITOR);
   a.frame(key(Button::SELECT));assert(!strcmp(a.text().str().c_str(),"."));
   unsigned save=key(Button::START)|key(command);
-  assert(a.save_feedback(save) && "SELECT release must not hide fresh save feedback");
+  // V4.0: only START+A saves; START+B goes Home without saving.
+  assert(a.save_feedback(save)==(command==Button::A) && "SELECT release must not hide fresh save feedback");
   auto operations=storage.operations();
   a.frame(save);a.frame(0);
-  assert(storage.operations()>operations && !a.text().dirty());
-  assert(a.scene()==(command==Button::A?Scene::EDITOR:Scene::MENU));
+  assert(a.scene()==(command==Button::A?Scene::EDITOR:Scene::HOME));
   assert(!strcmp(a.text().str().c_str(),"."));
   std::ifstream file(root+"/gbawriter/"+storage.current_name());std::string bytes((std::istreambuf_iterator<char>(file)),{});
-  assert(bytes==".");
+  if(command==Button::A)assert(storage.operations()>operations && !a.text().dirty() && bytes==".");
+  else assert(a.text().dirty() && bytes.empty() && a.active());
   std::filesystem::remove_all(root);
  }
- std::cout<<"PASS: SELECT release plus fresh START+A/B shows feedback and saves committed text\n";
+ std::cout<<"PASS: SELECT release plus fresh START+A saves; START+B leaves the text open unsaved\n";
 }
 int main(){groups();toggle();viewport();dates();indicators();select_release_save_feedback();}

@@ -26,6 +26,7 @@ static bool exists(const std::string& n){FILINFO i;return f_stat(path(n).c_str()
 static std::string get(const std::string& n){FIL f;must(f_open(&f,path(n).c_str(),FA_READ)==FR_OK,"get open");std::string s(f_size(&f),'\0');UINT r;FRESULT result=f_read(&f,s.data(),s.size(),&r);if(result!=FR_OK||r!=s.size()){printf("READ_ERROR name=%s result=%d read=%u expected=%zu\n",n.c_str(),int(result),r,s.size());f_close(&f);return "<UNREADABLE>";}must(f_close(&f)==FR_OK,"get close");return s;}
 static void dump(const std::string& n){fflush(image);std::vector<unsigned char> b(32768*512);rewind(image);must(fread(b.data(),1,b.size(),image)==b.size(),"dump read");FILE* o=fopen(n.c_str(),"wb");must(o&&fwrite(b.data(),1,b.size(),o)==b.size(),"dump write");fclose(o);}
 static std::vector<unsigned char> image_bytes(){must(!fflush(image),"image flush");std::vector<unsigned char> b(32768*512);rewind(image);must(fread(b.data(),1,b.size(),image)==b.size(),"image read");return b;}
+static void restore(const std::vector<unsigned char>& b){must(!fseek(image,0,SEEK_SET)&&fwrite(b.data(),1,b.size(),image)==b.size()&&!fflush(image),"restore image");}
 static void remount(){must(f_mount(nullptr,"0:",0)==FR_OK,"unmount");std::memset(&fs,0,sizeof fs);must(f_mount(&fs,"0:",1)==FR_OK,"mount");}
 static bool clean(const std::string& n){return !exists(n+".gwt")&&!exists(n+".gwb")&&!exists(n+".gwi");}
 int main(int argc,char**argv){must(argc==2,"image argument");image=fopen(argv[1],"r+b");must(image,"image open");remount();must(fs.fs_type==FS_FAT16,"actual FAT16");must(f_mkdir("/gbawriter")==FR_OK,"mkdir");Storage s;TextModel t;
@@ -86,5 +87,48 @@ auto scan_before=image_bytes();long scan_writes=writes;check(s.scan()==StoreResu
 // preserving its bytes outside the reserved artifact namespace; never unlink it.
 must(f_rename("/gbawriter/stage.txt.gwt","/gbawriter/preserved-stage.bin")==FR_OK,"preserve staging fixture under non-artifact name");
 check(get("preserved-stage.bin")=="partial"&&get("stage.txt")=="old","manual fixture resolution preserves both copies");
-for(int i=0;i<40;++i){char n[32];snprintf(n,sizeof n,"page%02d.txt",i);put(n,"");}StoreResult page_result=s.scan();printf("PAGE result=%d count=%d total=%d\n",int(page_result),s.count(),s.total());check(page_result==StoreResult::OK&&s.count()==FILE_PAGE_SIZE&&s.total()==52,"page bounded 32 with full total 52");
+for(int i=0;i<40;++i){char n[32];snprintf(n,sizeof n,"page%02d.txt",i);put(n,"");}StoreResult page_result=s.scan();printf("PAGE result=%d count=%d total=%d\n",int(page_result),s.count(),s.total());check(page_result==StoreResult::OK&&s.count()==52&&s.total()==52,"V4.0 Home lists all 52 names at once");
+// ---- V4.0 on production FatFS: settings folder, order, rename, delete, import ----
+auto names=[](const Storage& x){std::string o;for(int i=0;i<x.count();++i)o+=std::string(x.name(i))+"|";return o;};
+{Settings set=s.settings();set.format=NameFormat::YYYY_MM_DD;check(s.set_settings(set)==StoreResult::OK,"settings saved");
+ FILINFO info;check(f_stat("/gbawriter/GBAWRITER.SYS",&info)==FR_OK&&(info.fattrib&AM_DIR)&&(info.fattrib&AM_HID),"GBAWRITER.SYS is a hidden folder");
+ s.move(0,1);check(s.save_order()==StoreResult::OK,"order saved");std::string order=names(s);
+ remount();Storage r;check(r.scan()==StoreResult::OK&&names(r)==order&&r.settings().format==NameFormat::YYYY_MM_DD,"order and format after remount");}
+// Two-slot settings: a fault at any disk event leaves the old or the new order.
+// Fault sweeps run on a snapshot: an interrupted FAT write can leave lost
+// clusters, which the final fsck must not blame on normal operation.
+{remount();auto snapshot=image_bytes();Storage counter;counter.scan();counter.move(0,1);events=0;fail_at=-1;check(counter.save_order()==StoreResult::OK,"state count run");long total=events;int old_seen=0,new_seen=0;
+ for(long k=1;k<=total;++k){remount();Storage x;must(x.scan()==StoreResult::OK,"state sweep scan");std::string before=names(x);x.move(2,3);std::string after=names(x);
+  events=0;fail_at=k;fired=false;StoreResult r=x.save_order();fail_at=-1;
+  remount();Storage y;StoreResult sr=y.scan();std::string now=names(y);
+  check(sr==StoreResult::OK&&(now==before||now==after),"state fault "+std::to_string(k)+" keeps a whole order");
+  if(r==StoreResult::OK)check(now==after,"successful state save is read back");
+  if(now==before)++old_seen;else ++new_seen;}
+ printf("STATE_FAULT_SUMMARY events=%ld old=%d new=%d\n",total,old_seen,new_seen);must(f_mount(nullptr,"0:",0)==FR_OK,"unmount");restore(snapshot);remount();}
+// Rename / delete through FatFS (normal, upper/lower case only, collisions).
+{remount();Storage x;must(x.scan()==StoreResult::OK,"rename scan");put("rn-a.txt","A");put("rn-b.txt","B");must(x.scan()==StoreResult::OK,"rename rescan");
+ int a=-1,b=-1;for(int i=0;i<x.count();++i){if(!strcmp(x.name(i),"rn-a.txt"))a=i;if(!strcmp(x.name(i),"rn-b.txt"))b=i;}
+ must(a>=0&&b>=0,"rename fixtures listed");
+ check(x.rename_file(a,"RN-B")==StoreResult::NAME_USED&&get("rn-a.txt")=="A","rename onto another name in other case refused");
+ check(x.rename_file(a,"Renamed é")==StoreResult::OK&&!exists("rn-a.txt")&&get(u8"Renamed é.txt")=="A"&&!strcmp(x.name(a),u8"Renamed é.txt"),"UTF-8 rename keeps the row");
+ check(x.rename_file(a,u8"RENAMED é")==StoreResult::OK&&get(u8"RENAMED é.txt")=="A"&&!exists("gbawriter rename.txt"),"case-only rename through FatFS");
+ FILINFO info;check(f_stat(u8"/gbawriter/RENAMED é.txt",&info)==FR_OK&&std::string(info.fname)==u8"RENAMED é.txt","case-only rename visible in the directory");
+ check(x.delete_file(b)==StoreResult::OK&&!exists("rn-b.txt"),"delete removes the file");
+ remount();Storage y;check(y.scan()==StoreResult::OK&&names(y).find(u8"RENAMED é.txt")!=std::string::npos&&names(y).find("rn-b.txt")==std::string::npos,"rename/delete persisted");}
+// Import: whole-card browser and copy, numbered names, fault sweep leaves no partial copy.
+{must(f_mkdir("/Books")==FR_OK&&f_mkdir("/Books/Old")==FR_OK&&f_mkdir("/.hidden")==FR_OK,"import folders");
+ FIL f;UINT w=0;std::string book(70000,'b');book.replace(1000,4,u8"😀");
+ must(f_open(&f,"/Books/Story.txt",FA_WRITE|FA_CREATE_ALWAYS)==FR_OK&&f_write(&f,book.data(),book.size(),&w)==FR_OK&&f_close(&f)==FR_OK,"import source");
+ must(f_open(&f,"/Books/song.mp3",FA_WRITE|FA_CREATE_ALWAYS)==FR_OK&&f_close(&f)==FR_OK,"import other file");
+ must(f_chmod("/Books/Old",AM_HID,AM_HID)==FR_OK,"hide a folder");
+ remount();Storage x;check(x.browse("/")==StoreResult::OK&&x.browse_count()==1&&!strcmp(x.browse_name(0),"Books")&&x.browse_is_folder(0),"root: Books only (gbawriter and hidden left out)");
+ check(x.browse("/Books")==StoreResult::OK&&x.browse_count()==1&&!strcmp(x.browse_name(0),"Story.txt"),"Books: TXT only, hidden folder left out");
+ put("Story.txt","mine");char target[FILE_NAME_SIZE];
+ check(x.import_name("Story.txt",target)==StoreResult::NAME_USED&&!strcmp(target,"Story (2).txt"),"numbered name");
+ events=0;fail_at=-1;check(x.import_file("/Books/Story.txt",target,nullptr,nullptr)==StoreResult::OK&&get("Story (2).txt")==book&&get("Story.txt")=="mine","70 KB import exact, original kept");long total=events;
+ remount();auto snapshot=image_bytes();int refused=0;for(long k=1;k<=total;k+=7){remount();Storage y;events=0;fail_at=k;fired=false;StoreResult r=y.import_file("/Books/Story.txt","Story (3).txt",nullptr,nullptr);fail_at=-1;remount();
+  if(r==StoreResult::OK)check(get("Story (3).txt")==book,"import ok exact at fault "+std::to_string(k));
+  else {++refused;check(!exists("Story (3).txt")||get("Story (3).txt")==book,"no partial import at fault "+std::to_string(k));}
+  if(exists("Story (3).txt"))must(f_unlink("/gbawriter/Story (3).txt")==FR_OK,"cleanup import");}
+ printf("IMPORT_FAULT_SUMMARY events=%ld refused=%d\n",total,refused);must(f_mount(nullptr,"0:",0)==FR_OK,"unmount");restore(snapshot);remount();}
 printf("RESULT checks=%d failures=%d disk_reads=%ld disk_writes=%ld syncs=%ld\n",checks,failures,reads,writes,syncs);f_mount(nullptr,"0:",0);fclose(image);return failures?1:0;}
