@@ -214,7 +214,9 @@ static void screens() {
   assert(!strcmp(app.list_title(title), "b") && app.list_rows() == 3 + HELP_TOPICS);
   assert(app.list_row(0, text) && !strcmp(text, "Rename"));
   assert(app.list_row(1, text) && !strncmp(text, "File names: ", 12));
-  assert(app.list_row(2, text) && !strcmp(text, "Status bar: On"));
+  assert(app.list_row(2, text) && !strcmp(text, "Helper line: On"));
+  // The line under Helper line: settings above, instructions below.
+  assert(app.list_underline(2) && !app.list_underline(1) && !app.list_underline(3) && !app.list_underline(0));
   assert(app.list_row(2 + HELP_TOPICS, text) && !strcmp(text, "Credits"));
   // Rename b -> "bx".
   tap(Button::A);
@@ -256,14 +258,14 @@ static void screens() {
   tap(Button::A);
   assert(app.scene() == Scene::HOME && !fs::exists(root + "/gbawriter/bh.txt") && names_of(s) == "c.txt,a.txt");
   assert(app.nav().sel() == 1); // the next file takes the deleted row
-  // V4.1 Status bar setting: saved, decides how files open; Start+Select
+  // V4.1 Helper line setting: saved, decides how files open; Start+Select
   // still toggles while writing.
-  tap(Button::UP); // New File: File names, Status bar, topics
+  tap(Button::UP); // New File: File names, Helper line, topics
   tap(Button::SELECT);
   tap(Button::DOWN);
-  assert(app.list_row(1, text) && !strcmp(text, "Status bar: On"));
+  assert(app.list_row(1, text) && !strcmp(text, "Helper line: On"));
   tap(Button::A);
-  assert(!s.settings().status_bar && app.list_row(1, text) && !strcmp(text, "Status bar: Off"));
+  assert(!s.settings().status_bar && app.list_row(1, text) && !strcmp(text, "Helper line: Off"));
   {
     Storage again(root.c_str());
     assert(again.init() == StoreResult::OK && !again.settings().status_bar && again.settings().delete_files);

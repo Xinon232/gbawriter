@@ -580,7 +580,7 @@ void Storage::move(int i, int j) {
 }
 // ---- GBAWRITER.SYS ----
 // "GBWST001", u32 generation, u8 format, reorder, delete, flags (bit 0 has_date,
-// bit 1 status bar off since V4.1; 0 in V4.0 files), u8 day,
+// bit 1 helper line off since V4.1; 0 in V4.0 files), u8 day,
 // u8 month, u16 year, u32 count, u32 reserved, count NUL-terminated names,
 // u32 FNV-1a of everything before. Little endian.
 bool Storage::read_slot(int slot, uint32_t &generation, bool apply) {

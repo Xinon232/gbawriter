@@ -93,7 +93,8 @@ int main(int argc,char** argv){
  assert(a.nav().sel()==0);
  tap(Button::SELECT);frame();assert(has("gbawriter"));
  // Controls pages: grey page number, grey subheadings, no key line.
- tap(Button::DOWN);frame();assert(has("gbawriter"));   // Status bar row
+ tap(Button::DOWN);frame();assert(has("gbawriter"));   // Helper line row
+ for(int x=0;x<240;++x)assert(px[(ROW_Y+2*ROW_H-1)*240+x]==GREY);   // line under Helper line
  tap(Button::DOWN);tap(Button::A);frame();
  assert(has("Home")&&has("1/4",true)&&has("Home",false));
  bool sub=false;for(auto& d:draws)if(d.grey&&d.text!="1/4")sub=true;assert(sub);

@@ -38,13 +38,13 @@ constexpr HelpPage accents[] = {
                         "Shift and Caps work here too."}}};
 constexpr HelpPage caret[] = {
     {"Caret and saving", {"#Hold Start and press", "Left/Right: caret.", "Up/Down: line.  L/R: page.",
-                          "Select: status bar on / off.", "#Saving", "Start+A: save.",
+                          "Select: helper line on / off.", "#Saving", "Start+A: save.",
                           "Start+B: Home without saving.", "There is no autosave."}},
     {"Back to Home", {"Start+B keeps your text open:", "on Home the file has a play", "mark; B takes you back.",
                       "#Another file", "Opening another file asks:", "Save, Discard or Cancel.", "#Switching off",
                       "loses text that is not saved."}},
-    {"Status bar", {"The bar at the bottom shows", "the file name, the letter group", "and Shift / Caps.", "#Start+Select",
-                    "hides or shows it while writing.", "#Select > Status bar: On / Off", "how files open (saved).",
+    {"Helper line", {"The line at the bottom shows", "the file name, the letter group", "and Shift / Caps.", "#Start+Select",
+                    "hides or shows it while writing.", "#Select > Helper line: On / Off", "how files open (saved).",
                     "Default: On."}}};
 // Credits: the personal page first, then the license and each part made by
 // others with its license (gbavocab / gbamp3 order).

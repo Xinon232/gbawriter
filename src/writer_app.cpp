@@ -72,7 +72,7 @@ void Application::error(StoreResult r) {
   change(Scene::ERROR);
 }
 void Application::editor() {
-  // V4.1: Select menu > Status bar decides how a file opens; Start+Select
+  // V4.1: Select menu > Helper line decides how a file opens; Start+Select
   // still toggles it while writing.
   _status_visible = _storage.settings().status_bar;
   _input = InputState();
@@ -506,7 +506,7 @@ bool Application::list_row(int row, char (&out)[FILE_NAME_SIZE + 32]) const {
       break;
     }
     case ACT_STATUS:
-      std::strcpy(out, _storage.settings().status_bar ? "Status bar: On" : "Status bar: Off");
+      std::strcpy(out, _storage.settings().status_bar ? "Helper line: On" : "Helper line: Off");
       break;
     default:
       std::strcpy(out, help_topic_name(menu_row(row) - ACT_TOPIC));
@@ -542,6 +542,11 @@ bool Application::list_row(int row, char (&out)[FILE_NAME_SIZE + 32]) const {
     return true;
   }
   }
+}
+bool Application::list_underline(int row) const {
+  if (_scene == Scene::HOME)
+    return row == 0;
+  return _scene == Scene::LIST && _kind == ListKind::MENU && _confirm != row && menu_row(row) == ACT_STATUS;
 }
 RowIcon Application::list_icon(int row) const {
   if (_scene == Scene::HOME) {

@@ -46,7 +46,9 @@ public:
   // Row text (names without .txt); false: a grey, never selected row.
   bool list_row(int row, char (&out)[FILE_NAME_SIZE + 32]) const;
   RowIcon list_icon(int row) const;
-  bool list_underline(int row) const { return _scene == Scene::HOME && row == 0; }
+  // A line under New File (Home) and under the last setting of the Select
+  // menu (Helper line): the rows below are instructions.
+  bool list_underline(int row) const;
   const list::Nav &nav() const { return _scene == Scene::HOME ? _home : _list; }
   // Grey bottom line ("B: Resume active file") or nullptr.
   const char *list_footer() const;
