@@ -213,8 +213,20 @@ static void screens() {
   char title[64];
   assert(!strcmp(app.list_title(title), "b") && app.list_rows() == 3 + HELP_TOPICS);
   assert(app.list_row(0, text) && !strcmp(text, "Rename"));
-  assert(app.list_row(1, text) && !strncmp(text, "File names: ", 12));
+  assert(app.list_row(1, text) && !strcmp(text, "File names: 13072026"));
   assert(app.list_row(2, text) && !strcmp(text, "Helper line: On"));
+  {
+    // File names: the example is always 13 July 2026, in each format.
+    const char *shown[NAME_FORMATS] = {"File names: 13072026", "File names: 13.07.2026", "File names: 07132026",
+                                       "File names: 07.13.2026", "File names: 2026-07-13"};
+    for (int f = 0; f < NAME_FORMATS; ++f) {
+      assert(app.list_row(1, text) && !strcmp(text, shown[f]));
+      tap(Button::DOWN);
+      tap(Button::A);
+      tap(Button::UP);
+    }
+    assert(s.settings().format == NameFormat::DDMMYYYY && app.list_row(1, text) && !strcmp(text, shown[0]));
+  }
   // The line under Helper line: settings above, instructions below.
   assert(app.list_underline(2) && !app.list_underline(1) && !app.list_underline(3) && !app.list_underline(0));
   assert(app.list_row(2 + HELP_TOPICS, text) && !strcmp(text, "Credits"));

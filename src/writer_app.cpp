@@ -499,8 +499,10 @@ bool Application::list_row(int row, char (&out)[FILE_NAME_SIZE + 32]) const {
       std::strcpy(out, "Delete");
       break;
     case ACT_FORMAT: {
+      // V4.2: always the same example date; day 13 cannot be a month, so
+      // the order of day and month is clear in every format.
       char name[DIARY_NAME_SIZE];
-      format_diary_name(_storage.proposed_date(), _storage.settings().format, name);
+      format_diary_name(Date{13, 7, 2026}, _storage.settings().format, name);
       name[std::strlen(name) - 4] = 0;
       writer::format(out, sizeof(out), "File names: %s", name);
       break;

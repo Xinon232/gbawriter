@@ -49,7 +49,7 @@ constexpr HelpPage caret[] = {
 // Credits: the personal page first, then the license and each part made by
 // others with its license (gbavocab / gbamp3 order).
 constexpr HelpPage credits[] = {
-    {"Credits", {"gbawriter V4.1", "", "Made by Halim Jarrar", "(C) 2026", "", "halimj.itch.io",
+    {"Credits", {"gbawriter V4.2", "", "Made by Halim Jarrar", "(C) 2026", "", "halimj.itch.io",
                  "gba@halim-jarrar.de", ""}},
     {"License", {"gbawriter is free software under", "the GNU GPL 3.0 or later.", "", "#Source code",
                  "github.com/Xinon232/gbawriter", "", "Parts made by others and their",

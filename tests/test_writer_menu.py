@@ -105,7 +105,7 @@ int main(int argc,char** argv){
  assert(a.scene()==Scene::PAGES&&a.topic()==CREDITS_TOPIC);
  assert(has("Credits")&&has("1/6",true));
  const auto& page=help_page(CREDITS_TOPIC,0);
- assert(std::string(page.lines[0])=="gbawriter V4.1"&&std::string(page.lines[2])=="Made by Halim Jarrar"&&
+ assert(std::string(page.lines[0])=="gbawriter V4.2"&&std::string(page.lines[2])=="Made by Halim Jarrar"&&
         std::string(page.lines[3])=="(C) 2026"&&std::string(page.lines[5])=="halimj.itch.io"&&std::string(page.lines[6])=="gba@halim-jarrar.de");
  tap(Button::B);tap(Button::B);
  // Date picker in the format's field order, file name preview.

@@ -1,10 +1,14 @@
-# gbawriter — V4.1
+# gbawriter — V4.2
 
 Create and edit TXT files on your Game Boy Advance. Save your writing directly to the SD card, or open an existing text file to keep working. Put your TXT files in `/gbawriter` at the root of the SD card, or import them from anywhere on the card. Requires a compatible Supercard SD.
 
 Butano screens in the look of gbamp3, the SuperFW bitmap text renderer and fonts, and Supercard SD/FatFS storage. There is no QWERTY keyboard, network service, or AI component.
 
 > **Physical hardware remains unverified.** Host tests, filesystem fault injection and an emulator run on a modeled SD card pass; these are **not proof that saving is safe on a real GBA + Supercard SD**. Use disposable documents and a backed-up SD card until the hardware checklist below is completed. Do not entrust the only copy of a diary to this release.
+
+## What is new in V4.2
+
+- **Select > File names** always shows the same example date, 13 July 2026 (day 13 cannot be a month), in the chosen format.
 
 ## What is new in V4.1
 
@@ -74,9 +78,9 @@ On a file the title is its name and the first rows act on it:
 - **Delete** (only when Secret Settings > Delete files is On): the row turns into `Sure?`; A again deletes the TXT file, B or moving cancels.
 - The **open file** (▶) cannot be renamed or deleted: `This file is open. Open another file first.` Files with recovery copies (`.gwt`, `.gwb`, `.gwi`) are refused with `RECOVERY: CHECK SD ON PC`.
 
-Then for every row: **File names: …** (A switches the format; the row shows the next proposed name), **Helper line: On / Off** (V4.1: whether the helper line at the bottom of the editor is shown when a file opens; saved, default On; Start+Select still toggles it while writing; a line under this row separates the settings from the instructions below), the Controls topics (Files and menus, Letters, L layer, Spaces and case, Symbols, Accents, Caret and saving) and **Credits**. Pages: Left/Right turn, B returns to the menu.
+Then for every row: **File names: …** (A switches the format; the row always shows the example date 13 July 2026, so day and month are easy to tell apart: `13072026`, `13.07.2026`, `07132026`, `07.13.2026`, `2026-07-13`), **Helper line: On / Off** (V4.1: whether the helper line at the bottom of the editor is shown when a file opens; saved, default On; Start+Select still toggles it while writing; a line under this row separates the settings from the instructions below), the Controls topics (Files and menus, Letters, L layer, Spaces and case, Symbols, Accents, Caret and saving) and **Credits**. Pages: Left/Right turn, B returns to the menu.
 
-**Credits** — page 1: gbawriter V4.1, Made by Halim Jarrar, (C) 2026, halimj.itch.io, gba@halim-jarrar.de; then License, Text and fonts, SD card and files, Engine, and **Secret Settings** (press A):
+**Credits** — page 1: gbawriter V4.2, Made by Halim Jarrar, (C) 2026, halimj.itch.io, gba@halim-jarrar.de; then License, Text and fonts, SD card and files, Engine, and **Secret Settings** (press A):
 
 - `Reorder list (A+DPAD): On` (default On)
 - `Delete files: Off` (default Off)

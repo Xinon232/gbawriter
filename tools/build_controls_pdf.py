@@ -34,7 +34,7 @@ def markup(text):
 readme = (root / 'README.md').read_text()
 # Include every maintained file/menu/typing/navigation/save control, not a shortcut summary.
 body = readme.split('## Hardware and installation\n', 1)[1].split('## Text, memory and limits', 1)[0]
-story: list[Flowable] = [Paragraph('gbawriter V4.1', styles['TitleUTF']),
+story: list[Flowable] = [Paragraph('gbawriter V4.2', styles['TitleUTF']),
          Paragraph('Full controls · Halim Jarrar', styles['SectionUTF']),
          Paragraph('Create and edit TXT files on your Game Boy Advance. Save your writing directly to the SD card. Put TXT files in <b>/gbawriter</b> at the root of your SD card, or import them from anywhere on the card (Start on Home). Requires a compatible Supercard SD.', styles['BodyTextUTF']),
          Paragraph('Hardware-unverified build: emulator and host tests are not proof of safe saving on a physical Supercard. Back up your SD card and use disposable documents first.', styles['BodyTextUTF']),
@@ -73,8 +73,8 @@ story.extend([Paragraph('Storage and attribution', styles['SectionUTF']),
 def footer(canvas, doc):
     canvas.setFont('Body', 8)
     canvas.setFillColor(colors.HexColor('#526174'))
-    canvas.drawString(60, 30, 'gbawriter V4.1 · Full controls · Halim Jarrar')
+    canvas.drawString(60, 30, 'gbawriter V4.2 · Full controls · Halim Jarrar')
     canvas.drawRightString(535, 30, str(doc.page))
 
-SimpleDocTemplate(str(output), pagesize=(595.28,841.89), rightMargin=60, leftMargin=60, topMargin=48, bottomMargin=52, title='gbawriter V4.1 — Full controls', author='Halim Jarrar').build(story, onFirstPage=footer, onLaterPages=footer)
+SimpleDocTemplate(str(output), pagesize=(595.28,841.89), rightMargin=60, leftMargin=60, topMargin=48, bottomMargin=52, title='gbawriter V4.2 — Full controls', author='Halim Jarrar').build(story, onFirstPage=footer, onLaterPages=footer)
 print(output)
