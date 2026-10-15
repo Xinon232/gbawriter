@@ -57,9 +57,10 @@ constexpr HelpPage credits[] = {
     {"Text and fonts", {"#Text renderer", "SuperFW by David Guillen Fandos", "License: GPL 3.0 or later", "#Fonts",
                         "UNSCII by Viznut: GPL", "GNU Unifont (also Hangul):", "GPL 2.0 or later",
                         "UI font: from gbamp3 (MIT)"}},
-    {"SD card and files", {"#SD card driver", "From SuperFW", "by David Guillen Fandos",
-                           "License: GPL 3.0 or later", "#File system", "FatFs by ChaN",
-                           "License: FatFs (BSD style)", ""}},
+    {"SD card and files", {"#SD card driver: SuperCard", "SuperFW by David Guillen Fandos",
+                           "License: GPL 3.0 or later", "#SD card driver: EZ-Flash Omega",
+                           "Halim Jarrar, after the Omega", "kernel (Apache 2.0). License: MIT",
+                           "#File system", "FatFs by ChaN, BSD style license"}},
     {"Engine", {"#Engine", "Butano by Gustavo Valiente", "License: zlib", "", "#Built with",
                 "devkitPro / devkitARM", "", ""}},
     {"Secret Settings", {"Press A to open", "Secret Settings.", "", "", "", "", "", ""}}};

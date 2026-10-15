@@ -24,9 +24,13 @@ Butano screens in the look of gbamp3, the SuperFW bitmap text renderer and fonts
 - **File names for New File:** DDMMYYYY (as before), DD.MM.YYYY, MMDDYYYY, MM.DD.YYYY or YYYY-MM-DD.
 - **Controls and Credits** rewritten as separate sections with short pages; **Secret Settings** on the last Credits page.
 
+## EZ-Flash Omega (test build)
+
+This branch also runs on the **EZ-Flash Omega** (start the ROM from the SD card, not from NOR). It is a test build that has not been tried on a real Omega yet: back up your SD card first. The app checks at every start which cart it is on; hold **L+R** while it starts to use the SuperCard driver. The Omega Definitive Edition is expected to work but is untested. Details, limits and a hardware checklist: [docs/ezflash-omega.md](docs/ezflash-omega.md).
+
 ## Hardware and installation
 
-- A GBA-compatible system and **Supercard SD** using the inherited SuperFW-compatible SD driver. Other flashcarts and generic emulator save files are not supported storage backends.
+- A GBA-compatible system and **Supercard SD** using the inherited SuperFW-compatible SD driver, or (test build) an **EZ-Flash Omega**, see above. Other flashcarts and generic emulator save files are not supported storage backends.
 - Copy `gbawriter.gba` to your flashcart and launch it through its usual ROM loader. Published builds are on this repository's [Releases](https://github.com/Xinon232/gbawriter/releases) page.
 - Documents live in **`/gbawriter/`** on the SD card (created at start if missing). Settings and your list order live in the hidden folder `/gbawriter/GBAWRITER.SYS`; nothing is written next to your documents except the transient save files described below.
 - Home needs the card, so it is read once at start (`Checking SD...`). Without a card or with an incompatible one, the driver takes a while to give up; Home then says `No SD card`, and Controls and Credits still work.

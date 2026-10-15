@@ -227,6 +227,24 @@ EZFO_OUTER_CODE unsigned ezfo_read(void *buffer, uint32_t lba, unsigned count) {
   return 0;
 }
 
+/* Reads sector 0 and returns its last halfword (0xAA55 on an MBR or a boot
+ * sector), 0 when the card does not answer. Only for detection: no buffer. */
+static EZFO_FAR unsigned sector0_tail(uint32_t *polls);
+static EZFO_CODE unsigned sector0_tail(uint32_t *polls) {
+  struct window w;
+  unsigned tail = 0;
+  enter(&w);
+  sd_control(1);
+  sd_command(0, 1);
+  sd_control(3);
+  unsigned err = sd_wait(polls);
+  sd_control(1);
+  if (!err) tail = R16(SD_WINDOW + 510u);
+  sd_control(0);
+  leave(&w);
+  return tail;
+}
+
 /* A write that timed out twice: the card takes no writes (or is failing).
  * Later writes fail at once instead of waiting out the timeout again, which
  * also keeps a failing card from being written halfway. Reads go on. */
@@ -276,7 +294,6 @@ static EZFO_PROBE_CODE void probe(const uint16_t *saved, struct ezfo_probe *p) {
 
 EZFO_OUTER_CODE unsigned ezfo_detect(void) {
   uint16_t saved[16];
-  uint16_t sector[256];
   struct ezfo_probe *p = &ezfo_probe_info;
   p->nor_id = 0; p->header_gone = p->header_back = p->sd_answer = p->irq_hook = p->write_failed = 0; p->sd_polls = 0;
   /* SuperCard: SDRAM mapped, SD interface off, SDRAM writes off. A SuperCard
@@ -296,9 +313,9 @@ EZFO_OUTER_CODE unsigned ezfo_detect(void) {
   uint32_t polls = 0;
   uint8_t live = ezfo_irq_live;
   ezfo_irq_live = 0;
-  unsigned err = read_chunk((uint8_t *)sector, 0, 1, &polls);
+  unsigned tail = sector0_tail(&polls);
   ezfo_irq_live = live;
   p->sd_polls = polls > 0xFFFFu ? 0xFFFFu : (uint16_t)polls;
-  p->sd_answer = !err && sector[255] == 0xAA55u;
+  p->sd_answer = tail == 0xAA55u;
   return p->sd_answer ? EZFO_READY : EZFO_NO_CARD;
 }

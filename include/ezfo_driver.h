@@ -11,7 +11,11 @@ extern "C" {
 
 /* All entry points run from RAM (IWRAM unless EZFO_SECTION says otherwise):
  * while the SD card is used the Omega maps its kernel over the game ROM. */
+#ifdef __arm__
 #define EZFO_LONG_CALL __attribute__((long_call))
+#else
+#define EZFO_LONG_CALL /* host test builds */
+#endif
 
 /* ezfo_detect() results */
 #define EZFO_NONE    0  /* not an Omega (or forced off) */

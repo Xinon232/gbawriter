@@ -17,7 +17,8 @@
  *    CPU executes from ROM stop the run;
  *  - the SD window takes 16-bit accesses only, buffer reads need control 1,
  *    buffer writes control 3, polls control 3 (the kernel's own order).
- * Options (env): SD_IMAGE, SD_ALLOW_INDEX_WRITES (open r+b), EZFO_NOR_ID
+ * Options (env): SD_IMAGE (none or empty: no card, commands never answer),
+ * SD_ALLOW_INDEX_WRITES (open r+b; without it writes stay in memory), EZFO_NOR_ID
  * (default 0x223D), EZFO_DELAY_POLLS (busy polls per command, default 64),
  * EZFO_FAIL_READ / EZFO_FAIL_WRITE (1-based command that never completes)
  * with EZFO_FAIL_COUNT (consecutive failing commands, default 1),
@@ -29,6 +30,7 @@
  * Not hardware proof: timings are synthetic. */
 #include <mgba/internal/arm/arm.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 static struct ARMMemory original_memory;
 static struct mCore *model_core;
@@ -56,13 +58,29 @@ static void ez_fail(int code, const char *what, uint32_t a) {
 }
 static int ez_rom(uint32_t a) { return a >= 0x08000000 && a < 0x0E000000; }
 static int ez_window(uint32_t a) { return a >= 0x09E00000 && a < 0x09E00800; }
+/* Without SD_ALLOW_INDEX_WRITES the image file stays unchanged: written
+ * sectors are kept in memory (a normal Omega card takes writes). */
+static struct ez_sector { uint32_t lba; uint16_t data[256]; } *ez_cow;
+static unsigned ez_cow_n, ez_cow_cap;
+static uint16_t *ez_cow_find(uint32_t lba, int add) {
+  for (unsigned i = 0; i < ez_cow_n; i++) if (ez_cow[i].lba == lba) return ez_cow[i].data;
+  if (!add) return 0;
+  if (ez_cow_n == ez_cow_cap) { ez_cow_cap = ez_cow_cap ? ez_cow_cap * 2 : 64; ez_cow = realloc(ez_cow, ez_cow_cap * sizeof *ez_cow); if (!ez_cow) exit(74); }
+  ez_cow[ez_cow_n].lba = lba;
+  return ez_cow[ez_cow_n++].data;
+}
 static void ez_image(uint64_t lba, unsigned n, int write) {
   uint64_t off = lba * 512;
   if (!image_file || off > image_size || image_size - off < (uint64_t)n * 512) ez_fail(70, "LBA beyond image", (uint32_t)lba);
-  if (fseeko(image_file, (off_t)off, SEEK_SET)) exit(71);
-  if (write) {
-    if (fwrite(ez_buf, 512, n, image_file) != n || fflush(image_file)) exit(72);
-  } else if (fread(ez_buf, 512, n, image_file) != n) exit(73);
+  if (write && !getenv("SD_ALLOW_INDEX_WRITES")) {
+    for (unsigned i = 0; i < n; i++) memcpy(ez_cow_find((uint32_t)lba + i, 1), ez_buf + i * 256, 512);
+  } else {
+    if (fseeko(image_file, (off_t)off, SEEK_SET)) exit(71);
+    if (write) {
+      if (fwrite(ez_buf, 512, n, image_file) != n || fflush(image_file)) exit(72);
+    } else if (fread(ez_buf, 512, n, image_file) != n) exit(73);
+    if (!write) for (unsigned i = 0; i < n; i++) { uint16_t *c = ez_cow_find((uint32_t)lba + i, 0); if (c) memcpy(ez_buf + i * 256, c, 512); }
+  }
   if (lba + n - 1 > max_lba) max_lba = (unsigned)(lba + n - 1);
   if (lba >= 0x400000) high_reads++;
 }
@@ -73,12 +91,12 @@ static void ez_command(unsigned cnt) {
                         (unsigned long long)mTimingGlobalTime(model_core->timing), ((struct ARMCore *)model_core->cpu)->gprs[15]);
   if (!n || n > 4) ez_fail(64, "SD command count not 1..4", cnt);
   ez_busy = ez_delay;
+  if (!image_file) { ez_stuck = 1; if (!write) { ez_cmds_read++; read_cmds++; } else { ez_cmds_write++; ez_buffer_written = 0; } return; }  /* no card: never answers */
   if (write) {
     ez_cmds_write++;
     if (!ez_buffer_written) ez_fail(65, "write command without buffer data", cnt);
     ez_buffer_written = 0;
     if (getenv("SD_READONLY") || (ez_fail_write && ez_cmds_write >= ez_fail_write && ez_cmds_write < ez_fail_write + ez_fail_count)) { ez_stuck = 1; return; }
-    if (!getenv("SD_ALLOW_INDEX_WRITES")) ez_fail(66, "write to read-only image", ez_lba);
     ez_image(ez_lba, n, 1);
     sd_writes += n;
   } else {
