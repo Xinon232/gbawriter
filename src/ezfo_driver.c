@@ -25,10 +25,40 @@
  * library calls. tests/check_ram_code.py checks the linked ROM for that. */
 #include "ezfo_driver.h"
 
+/* Placement. By default everything is ARM code in IWRAM. An app short of
+ * IWRAM can split the driver into three groups:
+ *  - EZFO_SECTION / EZFO_ISA: the per-command code that runs while the kernel
+ *    is mapped (must be RAM: IWRAM or EWRAM);
+ *  - EZFO_PROBE_SECTION / EZFO_PROBE_ISA: the boot-time probe, which also runs
+ *    with the kernel mapped (RAM; may be an overlay that is loaded at boot);
+ *  - EZFO_OUTER_SECTION: ezfo_read, ezfo_write and ezfo_detect, which only
+ *    run with the game ROM mapped (may be ROM, e.g. ".text").
+ * Defining EZFO_OUTER_SECTION or EZFO_PROBE_SECTION makes calls between the
+ * groups long calls. */
 #ifndef EZFO_SECTION
 #define EZFO_SECTION ".iwram.ezfo"
 #endif
-#define EZFO_CODE __attribute__((section(EZFO_SECTION), target("arm"), noinline))
+#ifndef EZFO_ISA
+#define EZFO_ISA "arm"
+#endif
+#if defined(EZFO_OUTER_SECTION) || defined(EZFO_PROBE_SECTION)
+#define EZFO_FAR __attribute__((long_call))
+#else
+#define EZFO_FAR
+#endif
+#ifndef EZFO_PROBE_SECTION
+#define EZFO_PROBE_SECTION EZFO_SECTION
+#endif
+#ifndef EZFO_PROBE_ISA
+#define EZFO_PROBE_ISA EZFO_ISA
+#endif
+#define EZFO_CODE __attribute__((section(EZFO_SECTION), target(EZFO_ISA), noinline))
+#define EZFO_PROBE_CODE __attribute__((section(EZFO_PROBE_SECTION), target(EZFO_PROBE_ISA), noinline))
+#ifdef EZFO_OUTER_SECTION
+#define EZFO_OUTER_CODE __attribute__((section(EZFO_OUTER_SECTION), noinline))
+#else
+#define EZFO_OUTER_CODE EZFO_CODE
+#endif
 
 #define R16(a) (*(volatile uint16_t *)(a))
 #define R32(a) (*(volatile uint32_t *)(a))
@@ -52,6 +82,9 @@ struct window {
   uint16_t ime, waitcnt;
   uint32_t vector, hooked;
 };
+
+static EZFO_FAR void spin(uint32_t n);
+static EZFO_FAR void cart_reg(uint32_t reg, uint16_t value);
 
 static EZFO_CODE void spin(uint32_t n) {
   volatile uint32_t i = n;
@@ -142,6 +175,9 @@ static EZFO_CODE void copy_out(const uint8_t *s, unsigned halfwords) {
 }
 
 /* One command of 1..4 sectors. */
+static EZFO_FAR unsigned read_chunk(uint8_t *buf, uint32_t lba, unsigned n, uint32_t *polls);
+static EZFO_FAR unsigned write_chunk(const uint8_t *buf, uint32_t lba, unsigned n);
+
 static EZFO_CODE unsigned read_chunk(uint8_t *buf, uint32_t lba, unsigned n, uint32_t *polls) {
   struct window w;
   unsigned err = 1;
@@ -180,7 +216,7 @@ static EZFO_CODE unsigned write_chunk(const uint8_t *buf, uint32_t lba, unsigned
   return err;
 }
 
-EZFO_CODE unsigned ezfo_read(void *buffer, uint32_t lba, unsigned count) {
+EZFO_OUTER_CODE unsigned ezfo_read(void *buffer, uint32_t lba, unsigned count) {
   uint8_t *b = (uint8_t *)buffer;
   uint32_t polls = 0;
   while (count) {
@@ -191,7 +227,7 @@ EZFO_CODE unsigned ezfo_read(void *buffer, uint32_t lba, unsigned count) {
   return 0;
 }
 
-EZFO_CODE unsigned ezfo_write(const void *buffer, uint32_t lba, unsigned count) {
+EZFO_OUTER_CODE unsigned ezfo_write(const void *buffer, uint32_t lba, unsigned count) {
   const uint8_t *b = (const uint8_t *)buffer;
   while (count) {
     unsigned n = count > 4u ? 4u : count;
@@ -201,40 +237,19 @@ EZFO_CODE unsigned ezfo_write(const void *buffer, uint32_t lba, unsigned count) 
   return 0;
 }
 
-static EZFO_CODE unsigned header_equal(const uint16_t *saved) {
-  for (unsigned i = 0; i < 16; i++)
-    if (R16(0x080000A0u + i * 2u) != saved[i]) return 0;
-  return 1;
-}
-
-/* Something is badly wrong (the ROM is not on the PSRAM page, e.g. it was
- * installed to NOR): stop on a red screen without touching ROM. */
-static EZFO_CODE void halt_red(void) {
-  R16(0x04000000u) = 0;
-  R16(0x05000000u) = 0x001F;
-  for (;;) {}
-}
-
-EZFO_CODE unsigned ezfo_detect(void) {
-  uint16_t saved[16];
-  uint8_t sector_tail[2] = {0, 0};
-  struct window w;
-  struct ezfo_probe *p = &ezfo_probe_info;
-  p->nor_id = 0; p->header_gone = p->header_back = p->sd_answer = p->irq_hook = 0; p->sd_polls = 0;
-  /* SuperCard: SDRAM mapped, SD interface off, SDRAM writes off. A SuperCard
-   * then ignores the Omega's unlock writes below; an Omega ignores this. */
-  R16(0x09FFFFFEu) = 0xA55A; R16(0x09FFFFFEu) = 0xA55A;
-  R16(0x09FFFFFEu) = 0x0001; R16(0x09FFFFFEu) = 0x0001;
-  for (unsigned i = 0; i < 16; i++) saved[i] = R16(0x080000A0u + i * 2u);
-
-  unsigned ime = R16(REG_IME);
-  R16(REG_IME) = 0;
-  uint32_t vector = R32(irq_vector_base + 0xFCu);
-  p->irq_hook = vector >= 0x08000000u && vector < 0x0E000000u;
+/* Runs with interrupts off. Maps the kernel, compares the ROM header and
+ * reads the NOR ID, maps the game back. Something is badly wrong when the
+ * header does not come back (the ROM is not on the PSRAM page, e.g. it was
+ * installed to NOR): then it stops on a red screen without touching ROM. */
+static EZFO_FAR void probe(const uint16_t *saved, struct ezfo_probe *p);
+static EZFO_PROBE_CODE void probe(const uint16_t *saved, struct ezfo_probe *p) {
+  unsigned same = 1;
   cart_reg(0x09880000u, PAGE_KERNEL);
   spin(5000);
-  p->header_gone = !header_equal(saved);
-  if (p->header_gone) {
+  for (unsigned i = 0; i < 16; i++)
+    if (R16(0x080000A0u + i * 2u) != saved[i]) same = 0;
+  p->header_gone = !same;
+  if (!same) {
     R16(0x09000000u) = 0xF0;
     R16(0x09000000u + 0x555u * 2u) = 0xAA;
     R16(0x09000000u + 0x2AAu * 2u) = 0x55;
@@ -244,26 +259,42 @@ EZFO_CODE unsigned ezfo_detect(void) {
   }
   cart_reg(0x09880000u, PAGE_PSRAM);
   spin(5000);
-  p->header_back = header_equal(saved);
+  same = 1;
+  for (unsigned i = 0; i < 16; i++)
+    if (R16(0x080000A0u + i * 2u) != saved[i]) same = 0;
+  p->header_back = (uint8_t)same;
+  if (p->header_gone && !same) {
+    R16(0x04000000u) = 0;
+    R16(0x05000000u) = 0x001F;
+    for (;;) {}
+  }
+}
+
+EZFO_OUTER_CODE unsigned ezfo_detect(void) {
+  uint16_t saved[16];
+  uint16_t sector[256];
+  struct ezfo_probe *p = &ezfo_probe_info;
+  p->nor_id = 0; p->header_gone = p->header_back = p->sd_answer = p->irq_hook = 0; p->sd_polls = 0;
+  /* SuperCard: SDRAM mapped, SD interface off, SDRAM writes off. A SuperCard
+   * then ignores the Omega's unlock writes below; an Omega ignores this. */
+  R16(0x09FFFFFEu) = 0xA55A; R16(0x09FFFFFEu) = 0xA55A;
+  R16(0x09FFFFFEu) = 0x0001; R16(0x09FFFFFEu) = 0x0001;
+  for (unsigned i = 0; i < 16; i++) saved[i] = R16(0x080000A0u + i * 2u);
+  uint32_t vector = R32(irq_vector_base + 0xFCu);
+  p->irq_hook = vector >= 0x08000000u && vector < 0x0E000000u;
+  unsigned ime = R16(REG_IME);
+  R16(REG_IME) = 0;
+  probe(saved, p);
   R16(REG_IME) = ime;
   if (!p->header_gone) return EZFO_NONE;
-  if (!p->header_back) halt_red();
 
   /* The SD card answers: sector 0 (MBR or boot sector) ends in 55 AA. */
   uint32_t polls = 0;
-  unsigned saved_live = ezfo_irq_live;
+  uint8_t live = ezfo_irq_live;
   ezfo_irq_live = 0;
-  enter(&w);
-  sd_control(1);
-  sd_command(0, 1);
-  sd_control(3);
-  unsigned err = sd_wait(&polls);
-  sd_control(1);
-  if (!err) { uint16_t v = R16(SD_WINDOW + 510u); sector_tail[0] = (uint8_t)v; sector_tail[1] = (uint8_t)(v >> 8); }
-  sd_control(0);
-  leave(&w);
-  ezfo_irq_live = (uint8_t)saved_live;
+  unsigned err = read_chunk((uint8_t *)sector, 0, 1, &polls);
+  ezfo_irq_live = live;
   p->sd_polls = polls > 0xFFFFu ? 0xFFFFu : (uint16_t)polls;
-  p->sd_answer = !err && sector_tail[0] == 0x55 && sector_tail[1] == 0xAA;
+  p->sd_answer = !err && sector[255] == 0xAA55u;
   return p->sd_answer ? EZFO_READY : EZFO_NO_CARD;
 }

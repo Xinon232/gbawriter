@@ -24,6 +24,7 @@
  * EZFO_IRQ_HOOK (simulate the kernel's in-game patch: literals 03007FFC in
  * the ROM become 03007FF4 and the BIOS IRQ vector points to a stub at the end
  * of the ROM that jumps through 03007FF4).
+ * EZFO_TRACE=1 prints every SD command and, at exit, the CPU's PC.
  * Not hardware proof: timings are synthetic. */
 #include <mgba/internal/arm/arm.h>
 #include <stdio.h>
@@ -37,6 +38,7 @@ static FILE *image_file;
 static uint64_t image_size;
 static unsigned char *sdimage;
 static unsigned sd_reads, sd_writes, read_cmds, multi_cmds, stop_cmds, high_reads, max_lba, sdhc;
+static unsigned configured_delay, cmd8_seen; /* scsd_model.h names some runners print */
 /* Omega state */
 static unsigned ez_page = 0x200, ez_step, ez_unlocked, ez_ctl, ez_lba, ez_busy, ez_delay = 64;
 static unsigned ez_nor_id = 0x223D, ez_nor_mode, ez_nor_step, ez_nor_left_in_id;
@@ -63,8 +65,11 @@ static void ez_image(uint64_t lba, unsigned n, int write) {
   if (lba + n - 1 > max_lba) max_lba = (unsigned)(lba + n - 1);
   if (lba >= 0x400000) high_reads++;
 }
+static unsigned ez_trace;
 static void ez_command(unsigned cnt) {
   unsigned n = cnt & 0x7fff, write = (cnt & 0x8000) != 0;
+  if (ez_trace) fprintf(stderr, "EZFO %s lba=%u n=%u t=%llu pc=%08X\n", write ? "write" : "read", ez_lba, n,
+                        (unsigned long long)mTimingGlobalTime(model_core->timing), ((struct ARMCore *)model_core->cpu)->gprs[15]);
   if (!n || n > 4) ez_fail(64, "SD command count not 1..4", cnt);
   ez_busy = ez_delay;
   if (write) {
@@ -224,6 +229,10 @@ static void ez_patch_irq_hook(struct mCore *c) {
   cpu->memory.setActiveRegion(cpu, cpu->gprs[15]);
   fprintf(stderr, "EZFO MODEL: IRQ hook patch, %u literals, stub %08X\n", patched, stub);
 }
+static void ez_atexit(void) {
+  struct ARMCore *cpu = model_core->cpu;
+  fprintf(stderr, "EZFO exit: pc=%08X lr=%08X sp=%08X cpsr=%08X page=%04X\n", cpu->gprs[15], cpu->gprs[14], cpu->gprs[13], cpu->cpsr.packed, ez_page);
+}
 static void model_install(struct mCore *c) {
   model_core = c;
   const char *p = getenv("SD_IMAGE");
@@ -235,10 +244,12 @@ static void model_install(struct mCore *c) {
   }
   if ((p = getenv("EZFO_NOR_ID"))) ez_nor_id = strtoul(p, 0, 0);
   if ((p = getenv("EZFO_DELAY_POLLS"))) ez_delay = strtoul(p, 0, 0);
+  configured_delay = ez_delay;
   if ((p = getenv("EZFO_FAIL_READ"))) ez_fail_read = strtoul(p, 0, 0);
   if ((p = getenv("EZFO_FAIL_WRITE"))) ez_fail_write = strtoul(p, 0, 0);
   if ((p = getenv("EZFO_FAIL_COUNT"))) ez_fail_count = strtoul(p, 0, 0);
   if (getenv("EZFO_IRQ_HOOK")) ez_patch_irq_hook(c);
+  if (getenv("EZFO_TRACE")) { ez_trace = 1; atexit(ez_atexit); }
   struct ARMCore *cpu = c->cpu;
   original_memory = cpu->memory;
   cpu->memory.store16 = ez_store16_hook; cpu->memory.store32 = ez_store32_hook; cpu->memory.store8 = ez_store8_hook;
@@ -247,7 +258,7 @@ static void model_install(struct mCore *c) {
   cpu->memory.setActiveRegion = ez_active_hook;
 }
 /* One line a test can parse; call at the end of a run. */
-static void ez_report(FILE *f) {
+__attribute__((unused)) static void ez_report(FILE *f) {
   fprintf(f, "EZFO page=%04X kernel_entries=%u read_cmds=%u write_cmds=%u sectors_read=%u sectors_written=%u "
              "irq_in_kernel=%u irq_overlaps=%u max_window_cycles=%llu total_window_cycles=%llu nor_left_in_id=%u "
              "locked_rom_writes=%u\n",
