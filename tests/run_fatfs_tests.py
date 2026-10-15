@@ -15,7 +15,7 @@ for tool in ('gcc','g++','mkfs.fat','fsck.fat'):
 with tempfile.TemporaryDirectory(prefix='gbawriter-fatfs-') as directory:
     root=Path(directory)
     sources=['ff.c','ffunicode.c','ffsystem.c','writer_core.cpp','writer_storage.cpp','writer_format.cpp']
-    headers=['writer_storage.h','writer_core.h','writer_format.h','ff.h','ffconf.h','diskio.h','gbahw.h','supercard_driver.h']
+    headers=['writer_storage.h','writer_core.h','writer_format.h','ff.h','ffconf.h','diskio.h','gbahw.h','supercard_driver.h','cart_io.h']
     hashes={}
     for p in ['src/'+s for s in sources]+['include/'+s for s in headers]+['tests/test_writer_fatfs.cpp']:
         data=(repo/p).read_bytes();(root/Path(p).name).write_bytes(data)

@@ -10,7 +10,7 @@
 #include "ff.h"			/* Obtains integer types */
 #include "diskio.h"		/* Declarations of disk functions */
 
-#include "supercard_driver.h"
+#include "cart_io.h"
 
 DSTATUS disk_status (BYTE pdrv) {
   (void)pdrv;
@@ -35,7 +35,7 @@ DRESULT disk_read (
 )
 {
   (void)pdrv;
-  unsigned err = sdcard_read_blocks(buff, sector, count);
+  unsigned err = cart_read(buff, sector, count);
   return err ? RES_ERROR : RES_OK;
 }
 
@@ -54,7 +54,7 @@ DRESULT disk_write (
 )
 {
   (void)pdrv;
-  unsigned err = sdcard_write_blocks(buff, sector, count);
+  unsigned err = cart_write(buff, sector, count);
   return err ? RES_ERROR : RES_OK;
 }
 

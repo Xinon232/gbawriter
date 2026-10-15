@@ -1,0 +1,45 @@
+# Import Books/Notes.txt (name used: "Notes (2).txt"), open Notes, edit, Start+A save, Start+B leave.
+wait 240
+tap START
+wait 20
+tap A
+wait 20
+tap DOWN
+wait 10
+tap A
+wait 30
+tap DOWN
+wait 10
+tap A
+wait 30
+tap DOWN
+wait 10
+tap A
+wait 90
+shot a_after_dup_import
+tap DOWN
+wait 10
+tap A
+wait 30
+tap DOWN
+wait 10
+tap A
+wait 90
+shot b_after_story
+tap B
+wait 20
+tap B
+wait 30
+shot c_home
+tap A
+wait 40
+shot d_newfile
+tap A
+wait 90
+shot e_created
+hold START+A 10
+wait 90
+shot f_saved
+hold START+B 10
+wait 60
+shot g_home

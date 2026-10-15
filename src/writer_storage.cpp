@@ -6,7 +6,7 @@
 #ifdef __DEVKITARM__
 extern "C" {
 #include "gbahw.h"
-#include "supercard_driver.h"
+#include "cart_io.h"
 }
 #else
 #include <cerrno>
@@ -403,10 +403,7 @@ bool Storage::dir_close() {
 }
 StoreResult Storage::init() {
 #ifdef __DEVKITARM__
-  REG_WAITCNT = 0x40c0;
-  set_supercard_mode(MAPPED_SDRAM, true, true);
-  t_card_info info;
-  if (sdcard_init(&info) || f_mount(&_fatfs, "0:", 1) != FR_OK)
+  if (cart_sd_init() || f_mount(&_fatfs, "0:", 1) != FR_OK)
     return StoreResult::IO_ERROR;
   FRESULT r = f_mkdir(_root);
   if (r != FR_OK && r != FR_EXIST)

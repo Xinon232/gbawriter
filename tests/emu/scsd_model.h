@@ -118,9 +118,11 @@ static uint32_t sd_load16(struct ARMCore*c,uint32_t a,int*cycles){
 }
 static void sd_store16(struct ARMCore*c,uint32_t a,int16_t val,int*cycles){
  if(a==0x09000000&&sdimage&&write_active){if(cycles)*cycles+=5;if(!val){if(write_count)exit(47);write_count=1;}return;}
- if(a==0x09fffffe){if(cycles)*cycles+=5;unsigned v=(uint16_t)val;if(getenv("SD_TRACE"))fprintf(stderr,"MODE %04x\n",v);if(mode_step<2){if(v!=0xa55a)exit(34);mode_step++;}else{if(!(v&2))exit(35);sd_mode=3;if(++mode_step==4)mode_step=0;}return;}
+ if(a==0x09fffffe){if(cycles)*cycles+=5;unsigned v=(uint16_t)val;if(getenv("SD_TRACE"))fprintf(stderr,"MODE %04x\n",v);if(mode_step<2){if(v!=0xa55a)exit(34);mode_step++;}else{if(v>7)exit(35);sd_mode=v;if(++mode_step==4)mode_step=0;}return;}
  if(a==0x09440000){if(cycles)*cycles+=5;return;}
- if(a==0x09800000&&sdimage){if(cycles)*cycles+=5;if(sd_mode!=3)exit(36);cmd_shift=(cmd_shift<<1)|((val>>7)&1);if(++cmd_bits==48){cmd_bits=0;sd_command();}return;}
+ if(a==0x09800000&&sdimage){if(cycles)*cycles+=5;if((sd_mode&3)!=3)exit(36);cmd_shift=(cmd_shift<<1)|((val>>7)&1);if(++cmd_bits==48){cmd_bits=0;sd_command();}return;}
+ /* SDRAM writes on (mode bit 2): this store would change the ROM image. */
+ if(a>=0x08000000&&a<0x0a000000&&(sd_mode&4)){fprintf(stderr,"ROM WRITE %08X WITH SDRAM WRITES ON\n",a);exit(39);}
  original_memory.store16(c,a,val,cycles);
 }
 static void model_install(struct mCore*c){

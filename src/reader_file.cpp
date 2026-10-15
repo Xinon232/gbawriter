@@ -10,7 +10,7 @@
 #include "bn_core.h"
 #include "gbahw.h"
 extern "C" {
-#include "supercard_driver.h"
+#include "cart_io.h"
 }
 #endif
 
@@ -147,7 +147,7 @@ bool inspect_book_tail(const char*name,uint32_t physical,const unsigned char*tai
 
 bool storage_init(){name_count=0;
 #ifdef __DEVKITARM__
-REG_WAITCNT=0x40c0;set_supercard_mode(MAPPED_SDRAM,true,true);t_card_info info;if(sdcard_init(&info)||f_mount(&fatfs,"0:",1)!=FR_OK)return false;DIR d;FILINFO e;if(f_opendir(&d,"/")!=FR_OK)return false;while(name_count<LIBRARY_MAX_FILES&&f_readdir(&d,&e)==FR_OK&&e.fname[0])if(!(e.fattrib&AM_DIR)&&supported_book_name(e.fname)){copy_book_name(names[name_count],e.fname);++name_count;}f_closedir(&d);return true;
+if(cart_sd_init()||f_mount(&fatfs,"0:",1)!=FR_OK)return false;DIR d;FILINFO e;if(f_opendir(&d,"/")!=FR_OK)return false;while(name_count<LIBRARY_MAX_FILES&&f_readdir(&d,&e)==FR_OK&&e.fname[0])if(!(e.fattrib&AM_DIR)&&supported_book_name(e.fname)){copy_book_name(names[name_count],e.fname);++name_count;}f_closedir(&d);return true;
 #else
 return false;
 #endif

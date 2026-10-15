@@ -14,7 +14,11 @@
 #include <mgba/core/timing.h>
 #include <mgba/internal/gba/gba.h>
 #include <mgba-util/vfs.h>
+#ifdef EZFO_MODEL
+#include "ezfo_model.h" /* EZ-Flash Omega model instead */
+#else
 #include "scsd_model.h"
+#endif
 static struct mCore *core;
 static color_t *pixels;
 static unsigned frame_no;
@@ -86,6 +90,9 @@ int main(int argc, char **argv) {
       shot(argv[3], arg);
   }
   printf("frames=%u SD reads=%u writes=%u\n", frame_no, sd_reads, sd_writes);
+#ifdef EZFO_MODEL
+  ez_report(stdout);
+#endif
   core->deinit(core);
   if (image_file)
     fclose(image_file);
