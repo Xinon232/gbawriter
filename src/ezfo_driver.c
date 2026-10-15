@@ -227,11 +227,15 @@ EZFO_OUTER_CODE unsigned ezfo_read(void *buffer, uint32_t lba, unsigned count) {
   return 0;
 }
 
+/* A write that timed out twice: the card takes no writes (or is failing).
+ * Later writes fail at once instead of waiting out the timeout again, which
+ * also keeps a failing card from being written halfway. Reads go on. */
 EZFO_OUTER_CODE unsigned ezfo_write(const void *buffer, uint32_t lba, unsigned count) {
   const uint8_t *b = (const uint8_t *)buffer;
+  if (ezfo_probe_info.write_failed) return 1;
   while (count) {
     unsigned n = count > 4u ? 4u : count;
-    if (write_chunk(b, lba, n)) return 1;
+    if (write_chunk(b, lba, n)) { ezfo_probe_info.write_failed = 1; return 1; }
     b += n * 512u; lba += n; count -= n;
   }
   return 0;
@@ -274,7 +278,7 @@ EZFO_OUTER_CODE unsigned ezfo_detect(void) {
   uint16_t saved[16];
   uint16_t sector[256];
   struct ezfo_probe *p = &ezfo_probe_info;
-  p->nor_id = 0; p->header_gone = p->header_back = p->sd_answer = p->irq_hook = 0; p->sd_polls = 0;
+  p->nor_id = 0; p->header_gone = p->header_back = p->sd_answer = p->irq_hook = p->write_failed = 0; p->sd_polls = 0;
   /* SuperCard: SDRAM mapped, SD interface off, SDRAM writes off. A SuperCard
    * then ignores the Omega's unlock writes below; an Omega ignores this. */
   R16(0x09FFFFFEu) = 0xA55A; R16(0x09FFFFFEu) = 0xA55A;

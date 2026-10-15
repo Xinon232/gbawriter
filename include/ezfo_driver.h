@@ -26,6 +26,7 @@ struct ezfo_probe {
   uint8_t sd_answer;      /* sector 0 read with a 0x55AA signature */
   uint8_t irq_hook;       /* the kernel's in-game IRQ hook was found */
   uint16_t sd_polls;      /* busy polls for that read */
+  uint8_t write_failed;   /* a write timed out: writes are refused from then on */
 };
 extern struct ezfo_probe ezfo_probe_info;
 

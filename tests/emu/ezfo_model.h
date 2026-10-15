@@ -21,6 +21,7 @@
  * (default 0x223D), EZFO_DELAY_POLLS (busy polls per command, default 64),
  * EZFO_FAIL_READ / EZFO_FAIL_WRITE (1-based command that never completes)
  * with EZFO_FAIL_COUNT (consecutive failing commands, default 1),
+ * SD_READONLY (no write ever completes: the driver times out),
  * EZFO_IRQ_HOOK (simulate the kernel's in-game patch: literals 03007FFC in
  * the ROM become 03007FF4 and the BIOS IRQ vector points to a stub at the end
  * of the ROM that jumps through 03007FF4).
@@ -76,7 +77,7 @@ static void ez_command(unsigned cnt) {
     ez_cmds_write++;
     if (!ez_buffer_written) ez_fail(65, "write command without buffer data", cnt);
     ez_buffer_written = 0;
-    if (ez_fail_write && ez_cmds_write >= ez_fail_write && ez_cmds_write < ez_fail_write + ez_fail_count) { ez_stuck = 1; return; }
+    if (getenv("SD_READONLY") || (ez_fail_write && ez_cmds_write >= ez_fail_write && ez_cmds_write < ez_fail_write + ez_fail_count)) { ez_stuck = 1; return; }
     if (!getenv("SD_ALLOW_INDEX_WRITES")) ez_fail(66, "write to read-only image", ez_lba);
     ez_image(ez_lba, n, 1);
     sd_writes += n;
