@@ -205,8 +205,12 @@ static unsigned ed_sd_read_sector(uint8_t *dst) {
   if (ed_sd_wait_f0()) return 1;
   volatile uint16_t *src = (volatile uint16_t *)REG(REG_SD_DAT);
   if (((uintptr_t)dst & 1u) == 0) {
+    /* Unrolled: the loop runs from ROM, so fewer branches matter (gbamp3). */
     uint16_t *d = (uint16_t *)dst;
-    for (unsigned i = 0; i < 256; i++) d[i] = src[i];
+    for (unsigned i = 0; i < 256; i += 8, d += 8, src += 8) {
+      d[0] = src[0]; d[1] = src[1]; d[2] = src[2]; d[3] = src[3];
+      d[4] = src[4]; d[5] = src[5]; d[6] = src[6]; d[7] = src[7];
+    }
   } else {
     for (unsigned i = 0; i < 256; i++) { uint16_t v = src[i]; dst[2 * i] = (uint8_t)v; dst[2 * i + 1] = (uint8_t)(v >> 8); }
   }
