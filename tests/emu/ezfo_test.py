@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Exact-ROM differential test: SuperCard model vs EZ-Flash Omega model.
+"""Exact-ROM differential test: SuperCard model vs EZ-Flash Omega and EverDrive GBA models.
 
 Runs tests/emu/ezfo_script.txt (import with a used name, open, edit, save)
 with writer_runner on the SuperCard model and on the Omega model in several
 variants (other NOR IDs, slow card, the kernel's in-game IRQ hook, retried
-reads and writes). Every screenshot and every file on the card must be the
+reads and writes; on the EverDrive model (edgba_model.h): SDHC, SDSC, v1
+cards and slow or retried reads). Every screenshot and every file on the card must be the
 same as on the SuperCard, and fsck.vfat must find the card clean. Also checks
 the driver with tests/check_ram_code.py. Modeled carts, not hardware proof.
 Needs libmgba-dev, mtools, dosfstools.
@@ -33,7 +34,8 @@ def run(runner, rom, work, name, env_extra, script):
                        capture_output=True, text=True)
     if p.returncode:
         sys.exit(f'FAIL {name}: runner exit {p.returncode}\n{p.stderr[-2000:]}')
-    rep = next((l for l in p.stdout.splitlines() if l.startswith('EZFO')), '')
+    m = re.search(r'(?:EZFO|EDGBA) (.*)', p.stdout)
+    rep = m.group(1) if m else ''
     shots = {q.name: q.read_bytes() for q in sorted(out.glob('*.ppm'))}
     if subprocess.run(['fsck.vfat', '-n', str(img)], capture_output=True).returncode:
         sys.exit(f'FAIL {name}: filesystem not clean')
@@ -48,9 +50,10 @@ def main():
                         'ezfo_read', 'ezfo_write', 'ezfo_detect'], check=True)
     with tempfile.TemporaryDirectory() as tmp:
         work = Path(tmp)
-        sc, ez = work / 'runner_sc', work / 'runner_ezfo'
+        sc, ez, ed = work / 'runner_sc', work / 'runner_ezfo', work / 'runner_edgba'
         subprocess.run(['cc', '-O2', str(HERE / 'writer_runner.c'), '-lmgba', '-o', str(sc)], check=True)
         subprocess.run(['cc', '-O2', '-DEZFO_MODEL', str(HERE / 'writer_runner.c'), '-lmgba', '-o', str(ez)], check=True)
+        subprocess.run(['cc', '-O2', '-DEDGBA_MODEL', str(HERE / 'writer_runner.c'), '-lmgba', '-o', str(ed)], check=True)
         # A timed-out command waits about a second (the kernel's timeout), so the
         # fault variants use a copy of the script with long waits after each key.
         fast = HERE / 'ezfo_script.txt'
@@ -68,19 +71,29 @@ def main():
                                   ('ezfo-slow-card', {'EZFO_DELAY_POLLS': '4000'}, fast),
                                   ('ezfo-kernel-irq-hook', {'EZFO_IRQ_HOOK': '1'}, fast),
                                   ('ezfo-read-retry', {'EZFO_FAIL_READ': '20'}, slow),
-                                  ('ezfo-write-retry', {'EZFO_FAIL_WRITE': '2'}, slow)]:
+                                  ('ezfo-write-retry', {'EZFO_FAIL_WRITE': '2'}, slow),
+                                  ('edgba-sdhc', {'SDHC': '1'}, fast), ('edgba-sdsc', {}, fast),
+                                  ('edgba-sd-v1', {'SDV1': '1'}, fast),
+                                  ('edgba-slow-block', {'EDGBA_FAIL_READ': '20', 'EDGBA_FAIL_COUNT': '3000'}, fast),
+                                  ('edgba-read-retry', {'SDHC': '1', 'EDGBA_FAIL_READ': '20', 'EDGBA_FAIL_COUNT': '70000'}, slow)]:
             ref_shots, ref_files = refs[script]
-            shots, files, rep = run(ez, rom, work, name, env, script)
+            shots, files, rep = run(ed if name.startswith('edgba') else ez, rom, work, name, env, script)
             bad = [k for k in ref_shots if shots.get(k) != ref_shots[k]]
             if bad:
                 sys.exit(f'FAIL {name}: screens differ from the SuperCard run: {bad}')
             if files != ref_files:
                 sys.exit(f'FAIL {name}: card files differ: {sorted(set(files) ^ set(ref_files)) or "contents"}')
+            if name.startswith('edgba'):
+                if rep.get('cfg') != '0003' or rep.get('eeprom_window_writes') != '0' or rep.get('sectors_written', '0') == '0':
+                    sys.exit(f'FAIL {name}: model report {rep}')
+                print(f'PASS {name}: same screens and files as the SuperCard; {rep["read_cmds"]} read commands, '
+                      f'{rep["sectors_written"]} sectors written')
+                continue
             if rep.get('page') != '0200' or rep.get('irq_in_kernel') != '0' or rep.get('nor_left_in_id') != '0':
                 sys.exit(f'FAIL {name}: model report {rep}')
             print(f'PASS {name}: same screens and files as the SuperCard; {rep["read_cmds"]} read / '
                   f'{rep["write_cmds"]} write commands')
-    print('EZFO DIFFERENTIAL TEST PASS (modeled carts, not hardware proof)')
+    print('EZFO/EDGBA DIFFERENTIAL TEST PASS (modeled carts, not hardware proof)')
 
 
 if __name__ == '__main__':

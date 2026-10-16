@@ -16,6 +16,8 @@
 #include <mgba-util/vfs.h>
 #ifdef EZFO_MODEL
 #include "ezfo_model.h" /* EZ-Flash Omega model instead */
+#elif defined(EDGBA_MODEL)
+#include "edgba_model.h" /* EverDrive GBA model instead */
 #else
 #include "scsd_model.h"
 #endif
@@ -92,6 +94,8 @@ int main(int argc, char **argv) {
   printf("frames=%u SD reads=%u writes=%u\n", frame_no, sd_reads, sd_writes);
 #ifdef EZFO_MODEL
   ez_report(stdout);
+#elif defined(EDGBA_MODEL)
+  ed_report(stdout);
 #endif
   core->deinit(core);
   if (image_file)

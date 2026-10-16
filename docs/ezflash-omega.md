@@ -20,12 +20,14 @@ apps share one Omega driver.
 - **Which cart?** Checked once at every start, in a few milliseconds:
   1. SuperCard: SDRAM writes are switched off first, so the Omega's unlock
      writes below cannot change the ROM in a SuperCard.
-  2. The Omega kernel is mapped for a moment: the ROM header must disappear
+  2. The EverDrive GBA is checked next (see [everdrive-gba.md](everdrive-gba.md));
+     only if it is not one does the Omega check below run.
+  3. The Omega kernel is mapped for a moment: the ROM header must disappear
      and come back afterwards. The NOR flash ID is read and kept for the
      diagnostics, but it does not decide (boards with other NOR chips work).
-  3. Sector 0 of the SD card must answer with 55 AA.
+  4. Sector 0 of the SD card must answer with 55 AA.
   Otherwise the SuperCard driver starts as before.
-  **Hold L+R while the app starts** to skip the Omega check (SuperCard forced).
+  **Hold L+R while the app starts** to skip the EverDrive and Omega checks (SuperCard forced).
 - **SD access.** The Omega maps its kernel over the game ROM while the SD
   card is used, so the driver runs from RAM, maps the kernel for one command
   (up to 4 sectors) at a time and maps the game back after each command.
