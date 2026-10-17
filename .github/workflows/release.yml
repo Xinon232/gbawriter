@@ -62,6 +62,10 @@ jobs:
           (cd artifacts && grep ' gbawriter.gba$' ../roms/SHA256SUMS | sha256sum -c -)
           mkdir dist
           cp artifacts/gbawriter.gba gbawriter-full-controls.pdf dist/
+          # Complete source: this repository plus the gbaSD submodule at its pinned commit.
+          git archive --format=tar --prefix="gbawriter-${TAG#v}/" -o source.tar HEAD
+          git -C gbasd archive --format=tar --prefix="gbawriter-${TAG#v}/gbasd/" -o "$PWD/gbasd.tar" HEAD
+          tar --concatenate --file=source.tar gbasd.tar && gzip -n -c source.tar > "dist/gbawriter-source-$TAG.tar.gz"
           (cd dist && sha256sum * > SHA256SUMS && cat SHA256SUMS)
           title=$(head -1 "$notes" | sed 's/^# *//')
           gh release create "$TAG" dist/* --title "$title" --notes-file "$notes" --target "$GITHUB_SHA"
