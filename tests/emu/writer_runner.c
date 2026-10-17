@@ -15,11 +15,11 @@
 #include <mgba/internal/gba/gba.h>
 #include <mgba-util/vfs.h>
 #ifdef EZFO_MODEL
-#include "ezfo_model.h" /* EZ-Flash Omega model instead */
+#include "../../gbasd/tests/models/ezfo_model.h" /* EZ-Flash Omega model instead */
 #elif defined(EDGBA_MODEL)
-#include "edgba_model.h" /* EverDrive GBA model instead */
+#include "../../gbasd/tests/models/edgba_model.h" /* EverDrive GBA model instead */
 #else
-#include "scsd_model.h"
+#include "../../gbasd/tests/models/scsd_model.h"
 #endif
 static struct mCore *core;
 static color_t *pixels;

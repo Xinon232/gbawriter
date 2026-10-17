@@ -58,7 +58,7 @@ constexpr HelpPage credits[] = {
                         "UNSCII by Viznut: GPL", "GNU Unifont (also Hangul):", "GPL 2.0 or later",
                         "UI font: from gbamp3 (MIT)"}},
     {"SD card and files", {"#SD card driver: SuperCard", "SuperFW by David Guillen Fandos", "License: GPL 3.0 or later",
-                           "#Omega and EverDrive drivers", "Halim Jarrar (MIT), after the",
+                           "#Omega and EverDrive drivers", "Halim Jarrar (GPL), after the",
                            "Omega kernel (Apache 2.0) and", "edio-gba by krikzz (MIT)",
                            "Files: FatFs by ChaN (BSD style)"}},
     {"Engine", {"#Engine", "Butano by Gustavo Valiente", "License: zlib", "", "#Built with",

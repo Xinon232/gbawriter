@@ -7,7 +7,7 @@ variants (other NOR IDs, slow card, the kernel's in-game IRQ hook, retried
 reads and writes; on the EverDrive model (edgba_model.h): SDHC, SDSC, v1
 cards and slow or retried reads). Every screenshot and every file on the card must be the
 same as on the SuperCard, and fsck.vfat must find the card clean. Also checks
-the driver with tests/check_ram_code.py. Modeled carts, not hardware proof.
+the driver with gbasd/tests/check_ram_code.py. Modeled carts, not hardware proof.
 Needs libmgba-dev, mtools, dosfstools.
 Usage: tests/emu/ezfo_test.py gbawriter.gba
 """
@@ -46,7 +46,7 @@ def main():
     rom = Path(sys.argv[1]).resolve()
     elf = rom.with_suffix('.elf')
     if elf.exists():
-        subprocess.run([sys.executable, str(HERE.parent / 'check_ram_code.py'), str(elf),
+        subprocess.run([sys.executable, str(HERE.parent.parent / 'gbasd' / 'tests' / 'check_ram_code.py'), str(elf),
                         'ezfo_read', 'ezfo_write', 'ezfo_detect'], check=True)
     with tempfile.TemporaryDirectory() as tmp:
         work = Path(tmp)

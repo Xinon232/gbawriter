@@ -15,9 +15,10 @@ for tool in ('gcc','g++','mkfs.fat','fsck.fat'):
 with tempfile.TemporaryDirectory(prefix='gbawriter-fatfs-') as directory:
     root=Path(directory)
     sources=['ff.c','ffunicode.c','ffsystem.c','writer_core.cpp','writer_storage.cpp','writer_format.cpp']
-    headers=['writer_storage.h','writer_core.h','writer_format.h','ff.h','ffconf.h','diskio.h','gbahw.h','supercard_driver.h','cart_io.h']
+    headers=['writer_storage.h','writer_core.h','writer_format.h','ff.h','ffconf.h','diskio.h','gbahw.h']
+    gbasd_headers=['supercard_driver.h','cart_io.h']   # from the gbaSD submodule
     hashes={}
-    for p in ['src/'+s for s in sources]+['include/'+s for s in headers]+['tests/test_writer_fatfs.cpp']:
+    for p in ['src/'+s for s in sources]+['include/'+s for s in headers]+['gbasd/include/'+s for s in gbasd_headers]+['tests/test_writer_fatfs.cpp']:
         data=(repo/p).read_bytes();(root/Path(p).name).write_bytes(data)
         hashes[p]=hashlib.sha256(data).hexdigest()
     print('SOURCE_SHA256 '+json.dumps(hashes,sort_keys=True),flush=True)

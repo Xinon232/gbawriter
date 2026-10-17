@@ -18,8 +18,8 @@ TARGET      :=  gbawriter
 BUILD       :=  build
 LIBBUTANO   ?=  /path/to/butano/butano
 PYTHON      :=  python3
-SOURCES     :=  src
-INCLUDES    :=  include references/superfw/src references/superfw/src/fonts
+SOURCES     :=  src gbasd/src
+INCLUDES    :=  include gbasd/include references/superfw/src references/superfw/src/fonts
 # butano treats INCLUDES as relative to CURDIR. Symlink the common
 # headers we need into our own include dir so butano finds them.
 DATA        :=
