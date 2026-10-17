@@ -1,5 +1,5 @@
 name: Publish release
-# Push a branch release/vX.Y.Z whose docs/release-vX.Y.Z.md exists: runs the
+# Push a branch release/vX.Y.Z whose docs/releases/release-vX.Y.Z.md exists: runs the
 # host tests, builds the ROM with the pinned toolchain and publishes release
 # vX.Y.Z (tagging the pushed commit) with the ROM, the controls PDF and
 # SHA256SUMS. An existing release is left untouched.
@@ -11,7 +11,7 @@ permissions:
 jobs:
   rom:
     runs-on: ubuntu-24.04
-    container: devkitpro/devkitarm:20260610
+    container: devkitpro/devkitarm@sha256:15b79ce75822c289538d8153da5fa7aafe5e6adc32ad8a575a197beca0f0761b   # 20260610, linux/amd64; the same image in all four apps
     steps:
       - uses: actions/checkout@v4
         with:
@@ -56,8 +56,10 @@ jobs:
         run: |
           TAG="${BRANCH#release/}"
           if gh release view "$TAG" >/dev/null 2>&1; then echo "Release $TAG already exists"; exit 0; fi
-          notes="docs/release-${TAG}.md"
+          notes="docs/releases/release-${TAG}.md"
           test -f "$notes"
+          # The release ROM must be the tested ROM committed in roms/ (byte-identical build).
+          (cd artifacts && grep ' gbawriter.gba$' ../roms/SHA256SUMS | sha256sum -c -)
           mkdir dist
           cp artifacts/gbawriter.gba gbawriter-full-controls.pdf dist/
           (cd dist && sha256sum * > SHA256SUMS && cat SHA256SUMS)

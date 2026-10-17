@@ -23,7 +23,7 @@ jobs:
         run: python3 tests/run_fatfs_tests.py
   build:
     runs-on: ubuntu-latest
-    container: devkitpro/devkitarm:20260610
+    container: devkitpro/devkitarm@sha256:15b79ce75822c289538d8153da5fa7aafe5e6adc32ad8a575a197beca0f0761b   # 20260610, linux/amd64; the same image in all four apps
     steps:
       - name: Check out GBA Writer
         uses: actions/checkout@v4
@@ -53,3 +53,24 @@ jobs:
             gbawriter.gba
             gbawriter.elf
           if-no-files-found: error
+
+  # The exact ROM on mGBA: one script (import, open, edit, save) on the
+  # SuperCard, EZ-Flash Omega and EverDrive models (gbaSD); every screen and
+  # every file on the card must match the SuperCard run.
+  emulator:
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: gbawriter-rom
+      - name: Install mGBA library, FAT tools and ARM binutils (RAM-code check)
+        run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends libmgba-dev mtools dosfstools binutils-arm-none-eabi
+          mkdir -p "$RUNNER_TEMP/arm/bin" && ln -s /usr/bin/arm-none-eabi-nm /usr/bin/arm-none-eabi-objdump "$RUNNER_TEMP/arm/bin/"
+          echo "DEVKITARM=$RUNNER_TEMP/arm" >> "$GITHUB_ENV"
+      - name: SuperCard / Omega / EverDrive differential test
+        run: python3 tests/emu/ezfo_test.py gbawriter.gba

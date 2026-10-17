@@ -19,7 +19,7 @@ assert 'A alone' in readme and 'B alone' in readme
 assert 'B: Resume active file' in readme and 'Save / Discard / Cancel' in readme
 notes=(root/'RELEASE_NOTES.md').read_text()
 assert notes.startswith('# gbawriter V4.2') and 'hardware' in notes
-assert (root/'docs/release-v4.2.0.md').read_text().startswith('# gbawriter V4.2')
+assert (root/'docs/releases/release-v4.2.0.md').read_text().startswith('# gbawriter V4.2')
 assert 'Helper line: On / Off' in readme
 assert 'name: gbawriter-rom' in (root/'.github/workflows/build-rom.yml').read_text()
 print('PASS: V4.0 controls pages and hardware-unverified documentation')
