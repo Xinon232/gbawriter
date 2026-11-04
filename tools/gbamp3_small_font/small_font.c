@@ -1,4 +1,5 @@
-/* 5x7 small font from gbamp3 v0.9.8 (github.com/Xinon232/gbamp3, player/src/text.c),
+/* (C) 2026 Halim Jarrar, GPL-3.0-or-later (see LICENSE).
+ * 5x7 small font from gbamp3 v0.9.8 (github.com/Xinon232/gbamp3, player/src/text.c),
  * copied verbatim: glyph tables and small_bits(). Used only by
  * tools/make_ui_small_font.py to generate graphics/ui_small_font.bmp. */
 #include <stdint.h>

@@ -1,5 +1,5 @@
 #---------------------------------------------------------------------------------------------------------------------
-# gbawriter 10.0
+# gbawriter 11.0
 # Copyright (c) 2026 Halim Jarrar. GPL-3.0-or-later, see LICENSE and NOTICES.md.
 #
 # Stack: Butano + devkitPro devkitARM, C++.

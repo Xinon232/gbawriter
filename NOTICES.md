@@ -1,4 +1,4 @@
-# gbawriter 10.0 — notices and credits
+# gbawriter 11.0 — notices and credits
 
 gbawriter, Copyright (c) 2026 Halim Jarrar.
 
@@ -39,7 +39,7 @@ Each file keeps its own copyright and license notice.
   and the Hangul blocks of GNU Unifont, `third_party/superfw/res/fonts/*.hex`:
   GPL-2.0-or-later with the GNU font embedding exception, see
   `third_party/superfw/res/fonts/LICENSE-Unscii.txt`.
-- **UI font**: the 5x7 small font of gbamp3 by Halim Jarrar (MIT),
+- **UI font**: the 5x7 small font of gbamp3 by Halim Jarrar (GPL-3.0-or-later),
   `tools/gbamp3_small_font/small_font.c`, turned into
   `graphics/ui_small_font.bmp` and `include/ui_small_font.h` by
   `tools/make_ui_small_font.py`.

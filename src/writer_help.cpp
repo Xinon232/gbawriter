@@ -53,14 +53,14 @@ constexpr HelpPage caret[] = {
 // the license and each part made by others with its license (gbavocab /
 // gbamp3 order). Keep in step with NOTICES.md.
 constexpr HelpPage credits[] = {
-    {"Credits", {"gbawriter 10.0", "(c) 2026 Halim Jarrar", "halimj.itch.io", "gba@halim-jarrar.de", "GPL-3.0-or-later",
+    {"Credits", {"gbawriter 11.0", "(c) 2026 Halim Jarrar", "halimj.itch.io", "gba@halim-jarrar.de", "GPL-3.0-or-later",
                  "No warranty.", "Source:", "github.com/Xinon232/gbawriter"}},
     {"License", {"gbawriter is free software:", "you can share and change it", "under the GNU GPL, version 3",
                  "or later. It comes with", "NO WARRANTY (see LICENSE).", "",
                  "Parts made by others and their", "licenses are on the next pages."}},
     {"Text and fonts", {"#Text renderer", "SuperFW by David Guillen Fandos", "GPL-3.0-or-later", "#Fonts",
-                        "UNSCII by Viznut, GNU Unifont", "(Hangul): GPL-2.0-or-later", "#UI font",
-                        "gbamp3 by Halim Jarrar: MIT"}},
+                        "UNSCII by Viznut, GNU Unifont", "(Hangul): GPL-2.0-or-later", "#UI font (gbamp3)",
+                        "Halim Jarrar: GPL-3.0-or-later"}},
     {"SD card drivers", {"#SuperCard SD", "SuperFW by David Guillen Fandos", "GPL-3.0-or-later",
                          "#EverDrive GBA", "edio-gba by krikzz: MIT", "#EZ-Flash Omega",
                          "Halim Jarrar, after the Omega", "kernel (Apache-2.0)"}},

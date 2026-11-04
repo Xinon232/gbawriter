@@ -293,4 +293,11 @@
 
 
 
+/* gbaSD: a 4-sector (2 KiB) buffer for multi-sector card access: exFAT
+/  allocation-bitmap reads ahead and new folders cleared 4 sectors per write
+/  (gbasd/docs/fatfs.md changes 6 and 8). In EWRAM (Butano puts .bss in IWRAM). */
+#define GBASD_FF_MULTI_BUF		4
+#define GBASD_FF_MULTI_BUF_ATTR	__attribute__((section(".sbss")))
+
+
 /*--- End of configuration options ---*/

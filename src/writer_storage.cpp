@@ -1,4 +1,5 @@
 #include "writer_storage.h"
+#include <cstdint>
 #include <cstdio>
 #include "writer_format.h"
 #include <cstring>
@@ -9,6 +10,7 @@ extern "C" {
 #include "cart_io.h"
 }
 #include "exfat_repair.h"
+#include "alloc_hint.h"
 #else
 #include <cerrno>
 #include <fcntl.h>
@@ -138,7 +140,13 @@ bool FileSource::open(const char *path) {
     r = f_open(&_file, path, FA_READ);
   if (r != FR_OK)
     return false;
-  _size = f_size(&_file);
+  // exFAT files can be 4 GiB and more: such a size does not fit in size_t, and the
+  // offsets here are 32-bit. Not opened (load and import refuse it first, too large).
+  if (uint64_t(f_size(&_file)) > MAX_FILE_BYTES) {
+    f_close(&_file);
+    return false;
+  }
+  _size = std::size_t(f_size(&_file));
 #else
   _file = std::fopen(path, "rb");
   if (!_file)
@@ -278,7 +286,9 @@ int Storage::stat_path(const char *p, std::size_t &size, bool &directory) {
     return 0;
   if (r != FR_OK)
     return -1;
-  size = info.fsize;
+  // exFAT: a file of 4 GiB or more would wrap in the 32-bit size_t (read as a short
+  // file, and a save would replace it with that). Cap it, so it is too large.
+  size = uint64_t(info.fsize) > uint64_t(SIZE_MAX) ? SIZE_MAX : std::size_t(info.fsize);
   directory = info.fattrib & AM_DIR;
 #else
   struct ::stat info;
@@ -484,6 +494,10 @@ StoreResult Storage::init() {
   if (cart_sd_init() || f_mount(&_fatfs, "0:", 1) != FR_OK)
     return StoreResult::IO_ERROR;
   repair_folders();
+  // exFAT keeps no free-space hint: start the search for free clusters after
+  // /gbawriter's files (documents and their save copies go there), not at
+  // the start of the card (gbasd/fatfs/alloc_hint.h). Nothing on FAT32.
+  gbasd_alloc_hint(&_fatfs, _root);
   FRESULT r = f_mkdir(_root);
   if (r != FR_OK && r != FR_EXIST)
     return StoreResult::IO_ERROR;

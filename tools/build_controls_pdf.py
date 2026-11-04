@@ -34,7 +34,7 @@ def markup(text):
 readme = (root / 'README.md').read_text()
 # Include every maintained file/menu/typing/navigation/save control, not a shortcut summary.
 body = readme.split('## Hardware and installation\n', 1)[1].split('## Text, memory and limits', 1)[0]
-story: list[Flowable] = [Paragraph('gbawriter 10.0', styles['TitleUTF']),
+story: list[Flowable] = [Paragraph('gbawriter 11.0', styles['TitleUTF']),
          Paragraph('Full controls · Halim Jarrar', styles['SectionUTF']),
          Paragraph('Create and edit TXT files on your Game Boy Advance. Save your writing directly to the SD card. Put TXT files in <b>/gbawriter</b> at the root of your SD card, or import them from anywhere on the card (Start on Home). Runs on the SuperCard SD, EZ-Flash Omega (also the Definitive Edition; start the ROM from the SD card, not from NOR) or EverDrive GBA.', styles['BodyTextUTF']),
          Paragraph('Hardware-unverified build: emulator and host tests are not proof of safe saving on a physical flashcart. Back up your SD card and use disposable documents first.', styles['BodyTextUTF']),
@@ -67,15 +67,15 @@ while i < len(lines):
         story.append(Paragraph(markup(line), styles['BodyTextUTF']))
     i += 1
 story.extend([Paragraph('Storage', styles['SectionUTF']),
-    Paragraph('Files have no size limit: they stay on the SD card and only changes use RAM. Up to 64 KiB of typed text can be unsaved at once; when the bar shows BUFFER FULL - SAVE, save to continue (the text is kept). Saving a large file takes longer. Saves change only the opened TXT file. Settings and the list order are kept in the folder /gbawriter/GBAWRITER.SYS (visible on a PC; the app does not list it). Temporary .gwt, .gwb and .gwi recovery files may remain after interrupted or failed saves. Do not delete them on the original card: back up the card and consult the README recovery instructions. There is no undo/redo or autosave: switching off loses text that is not saved.', styles['BodyTextUTF'])])
+    Paragraph('Files up to 2 GiB open (a larger one shows FILE TOO LARGE and is left as it is): they stay on the SD card and only changes use RAM. Up to 64 KiB of typed text can be unsaved at once; when the bar shows BUFFER FULL - SAVE, save to continue (the text is kept). Saving a large file takes longer. Saves change only the opened TXT file. Settings and the list order are kept in the folder /gbawriter/GBAWRITER.SYS (visible on a PC; the app does not list it). Temporary .gwt, .gwb and .gwi recovery files may remain after interrupted or failed saves. Do not delete them on the original card: back up the card and consult the README recovery instructions. There is no undo/redo or autosave: switching off loses text that is not saved.', styles['BodyTextUTF'])])
 # About / license block (last page): version, copyright, license, no warranty,
 # public source and the parts made by others (as Credits in the app, NOTICES.md).
 ABOUT = [
-    'gbawriter 10.0 · Copyright (c) 2026 Halim Jarrar · halimj.itch.io · gba@halim-jarrar.de',
+    'gbawriter 11.0 · Copyright (c) 2026 Halim Jarrar · halimj.itch.io · gba@halim-jarrar.de',
     'gbawriter is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version (GPL-3.0-or-later).',
     'No warranty: gbawriter is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.',
     'Source code: github.com/Xinon232/gbawriter',
-    'Credits: text renderer, UTF-8 helpers and font packs: SuperFW by David Guillen Fandos (GPL-3.0-or-later). Fonts: UNSCII by Viznut and GNU Unifont, also its Hangul blocks (GPL-2.0-or-later with the font embedding exception). UI font: gbamp3 by Halim Jarrar (MIT). SuperCard SD driver: SuperFW by David Guillen Fandos (GPL-3.0-or-later). EverDrive GBA SD code: edio-gba by krikzz (MIT). EZ-Flash Omega driver: Halim Jarrar, after the Omega kernel (Apache-2.0). SD card code: gbaSD by Halim Jarrar (GPL-3.0-or-later). File system: FatFs by ChaN (FatFs license, BSD style). Engine: Butano by Gustavo Valiente (zlib). Built with devkitPro / devkitARM. See LICENSE and NOTICES.md in the source.',
+    'Credits: text renderer, UTF-8 helpers and font packs: SuperFW by David Guillen Fandos (GPL-3.0-or-later). Fonts: UNSCII by Viznut and GNU Unifont, also its Hangul blocks (GPL-2.0-or-later with the font embedding exception). UI font: gbamp3 by Halim Jarrar (GPL-3.0-or-later). SuperCard SD driver: SuperFW by David Guillen Fandos (GPL-3.0-or-later). EverDrive GBA SD code: edio-gba by krikzz (MIT). EZ-Flash Omega driver: Halim Jarrar, after the Omega kernel (Apache-2.0). SD card code: gbaSD by Halim Jarrar (GPL-3.0-or-later). File system: FatFs by ChaN (FatFs license, BSD style). Engine: Butano by Gustavo Valiente (zlib). Built with devkitPro / devkitARM. See LICENSE and NOTICES.md in the source.',
 ]
 story.append(Paragraph('About / license', styles['SectionUTF']))
 story.extend(Paragraph(escape(text), styles['BodyTextUTF']) for text in ABOUT)
@@ -83,8 +83,8 @@ story.extend(Paragraph(escape(text), styles['BodyTextUTF']) for text in ABOUT)
 def footer(canvas, doc):
     canvas.setFont('Body', 8)
     canvas.setFillColor(colors.HexColor('#526174'))
-    canvas.drawString(60, 30, 'gbawriter 10.0 · Full controls · Halim Jarrar')
+    canvas.drawString(60, 30, 'gbawriter 11.0 · Full controls · Halim Jarrar')
     canvas.drawRightString(535, 30, str(doc.page))
 
-SimpleDocTemplate(str(output), pagesize=(595.28,841.89), rightMargin=60, leftMargin=60, topMargin=48, bottomMargin=52, title='gbawriter 10.0 — Full controls', author='Halim Jarrar').build(story, onFirstPage=footer, onLaterPages=footer)
+SimpleDocTemplate(str(output), pagesize=(595.28,841.89), rightMargin=60, leftMargin=60, topMargin=48, bottomMargin=52, title='gbawriter 11.0 — Full controls', author='Halim Jarrar').build(story, onFirstPage=footer, onLaterPages=footer)
 print(output)

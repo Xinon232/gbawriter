@@ -1,8 +1,8 @@
-# gbawriter 10.0
+# gbawriter 11.0
 
 Create and edit TXT files on your Game Boy Advance. Save your writing directly to the SD card, or open an existing text file to keep working. Put your TXT files in `/gbawriter` at the root of the SD card, or import them from anywhere on the card. Runs on the **SuperCard SD**, the **EZ-Flash Omega** (also the Definitive Edition; start the ROM from the SD card, not from NOR) and the **EverDrive GBA**.
 
-This repository holds the complete source code of gbawriter 10.0. Every control is in the manual, [gbawriter-full-controls.pdf](gbawriter-full-controls.pdf).
+This repository holds the complete source code of gbawriter 11.0. Every control is in the manual, [gbawriter-full-controls.pdf](gbawriter-full-controls.pdf).
 
 > Physical hardware is not verified for this release: host tests and emulator runs on modeled SD cards pass, but they are not proof that saving is safe on a real cart. Back up your SD card and try it with disposable documents first.
 
@@ -38,7 +38,7 @@ make -j2 LIBBUTANO="$PWD/../butano/butano"
 Output: **`gbawriter.gba`** in the top folder (plus `gbawriter.elf` and the `build/` folder). `LIBBUTANO` must point to Butano's inner `butano` folder. With the toolchain above the build is byte-identical to the released ROM:
 
 ```
-5ebf7c4dde862a3313d239ea053f0ce211ab8a7a0b0c260f5de42ae32814b242  gbawriter.gba
+d4b12db35a3d3ff0ed4dd4c424edebae62866de0eebe6c4f432ded508c3d7022  gbawriter.gba
 ```
 
 `make clean LIBBUTANO=...` removes the build.
@@ -47,7 +47,7 @@ PC-side tools in `tools/` (not needed for the build; their outputs are in the re
 
 ## License
 
-gbawriter 10.0, Copyright (c) 2026 Halim Jarrar (halimj.itch.io, gba@halim-jarrar.de).
+gbawriter 11.0, Copyright (c) 2026 Halim Jarrar (halimj.itch.io, gba@halim-jarrar.de).
 
 gbawriter is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version (**GPL-3.0-or-later**, see [LICENSE](LICENSE)).
 
@@ -58,7 +58,7 @@ gbawriter is distributed in the hope that it will be useful, but **WITHOUT ANY W
 Parts made by others, each with its own notice in the files ([NOTICES.md](NOTICES.md) has the details):
 
 - **SuperFW** by David Guillen Fandos — text renderer, UTF-8 helpers and font packs (`third_party/superfw/`) and the SuperCard SD driver (in gbaSD): GPL-3.0-or-later.
-- **Fonts:** UNSCII by Viznut and GNU Unifont (Hangul blocks): GPL-2.0-or-later with the font embedding exception. UI font: gbamp3's 5x7 font by Halim Jarrar (MIT).
+- **Fonts:** UNSCII by Viznut and GNU Unifont (Hangul blocks): GPL-2.0-or-later with the font embedding exception. UI font: gbamp3's 5x7 font by Halim Jarrar (GPL-3.0-or-later).
 - **gbaSD** by Halim Jarrar (GPL-3.0-or-later), with the EverDrive GBA SD code from edio-gba by krikzz (MIT), an EZ-Flash Omega driver written after the Omega kernel (Apache-2.0) and **FatFs** by ChaN (FatFs license, BSD style).
 - **Butano** by Gustavo Valiente: zlib ([third_party/butano/LICENSE](third_party/butano/LICENSE)).
 - Built with **devkitPro / devkitARM**.
